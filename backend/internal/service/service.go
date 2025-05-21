@@ -41,6 +41,15 @@ type ModelService interface {
 	ListModelsByCompany(ctx context.Context, companyID string) ([]domain.Model, error)
 	GetModelConfig(ctx context.Context, modelID string) (*domain.ModelConfig, error)
 	UpdateModelConfig(ctx context.Context, config *domain.ModelConfig) error
+
+	// Дополнительные методы для API
+	GetModelByID(ctx context.Context, id string) (*domain.Model, error)
+	GetAllModels(ctx context.Context) ([]domain.Model, error)
+	GetAllCompanies(ctx context.Context) ([]domain.Company, error)
+	GetModelsByCompanyID(ctx context.Context, companyID string) ([]domain.Model, error)
+	GetAllModelsWithConfigs(ctx context.Context) ([]domain.Model, error)
+	CreateModelConfig(ctx context.Context, modelID string, isFree bool, isEnabled bool, inputTokenCost float64, outputTokenCost float64) (*domain.ModelConfig, error)
+	UpdateModelConfigParams(ctx context.Context, id string, isFree bool, isEnabled bool, inputTokenCost float64, outputTokenCost float64) (*domain.ModelConfig, error)
 }
 
 // RateLimitService определяет методы работы с ограничениями запросов

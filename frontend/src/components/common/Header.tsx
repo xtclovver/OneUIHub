@@ -16,7 +16,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-gray-800 bg-opacity-60 backdrop-blur-md z-50 sticky top-0">
+    <header className="bg-white border-b border-gray-200 z-50 sticky top-0">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-4">
@@ -26,35 +26,38 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            <Link to="/" className="text-gray-200 hover:text-primary-400 transition-colors">
+          <nav className="hidden md:flex items-center space-x-8">
+            <Link to="/" className="text-gray-700 hover:text-primary-500 font-medium transition-colors">
               Главная
             </Link>
-            <Link to="/models" className="text-gray-200 hover:text-primary-400 transition-colors">
+            <Link to="/models" className="text-gray-700 hover:text-primary-500 font-medium transition-colors">
               Модели
             </Link>
             {isAuthenticated ? (
               <>
-                <Link to="/requests" className="text-gray-200 hover:text-primary-400 transition-colors">
+                <Link to="/requests" className="text-gray-700 hover:text-primary-500 font-medium transition-colors">
                   Запросы
                 </Link>
-                <Link to="/profile" className="text-gray-200 hover:text-primary-400 transition-colors">
+                <Link to="/profile" className="text-gray-700 hover:text-primary-500 font-medium transition-colors">
                   Профиль
                 </Link>
                 <button 
                   onClick={handleLogout} 
-                  className="text-gray-200 hover:text-primary-400 transition-colors"
+                  className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
                 >
                   Выход
                 </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-200 hover:text-primary-400 transition-colors">
+                <Link to="/login" className="text-gray-700 hover:text-primary-500 font-medium transition-colors">
                   Вход
                 </Link>
-                <Link to="/register" className="btn gradient-primary text-white">
-                  Регистрация
+                <Link 
+                  to="/register" 
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 shadow-sm hover:shadow"
+                >
+                  Начать бесплатно
                 </Link>
               </>
             )}
@@ -62,39 +65,58 @@ const Header = () => {
 
           {/* Mobile menu button */}
           <button 
-            className="md:hidden text-white"
+            className="md:hidden text-gray-700"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-expanded={isMenuOpen}
+            aria-label="Переключить меню"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-6 w-6" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M4 6h16M4 12h16M4 18h16" 
-              />
-            </svg>
+            {isMenuOpen ? (
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-6 w-6" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M6 18L18 6M6 6l12 12" 
+                />
+              </svg>
+            ) : (
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-6 w-6" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 6h16M4 12h16M4 18h16" 
+                />
+              </svg>
+            )}
           </button>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="md:hidden py-4 flex flex-col space-y-4 bg-gray-800 rounded-md p-4 mb-4">
+          <nav className="md:hidden py-4 flex flex-col space-y-4 bg-white rounded-lg shadow-lg p-4 mb-4 border border-gray-200 absolute left-4 right-4">
             <Link 
               to="/" 
-              className="text-gray-200 hover:text-primary-400 transition-colors"
+              className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Главная
             </Link>
             <Link 
               to="/models" 
-              className="text-gray-200 hover:text-primary-400 transition-colors"
+              className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Модели
@@ -103,14 +125,14 @@ const Header = () => {
               <>
                 <Link 
                   to="/requests" 
-                  className="text-gray-200 hover:text-primary-400 transition-colors"
+                  className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Запросы
                 </Link>
                 <Link 
                   to="/profile" 
-                  className="text-gray-200 hover:text-primary-400 transition-colors"
+                  className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Профиль
@@ -120,7 +142,7 @@ const Header = () => {
                     handleLogout();
                     setIsMenuOpen(false);
                   }} 
-                  className="text-gray-200 hover:text-primary-400 transition-colors text-left"
+                  className="text-gray-700 hover:text-primary-500 font-medium transition-colors text-left"
                 >
                   Выход
                 </button>
@@ -129,17 +151,17 @@ const Header = () => {
               <>
                 <Link 
                   to="/login" 
-                  className="text-gray-200 hover:text-primary-400 transition-colors"
+                  className="text-gray-700 hover:text-primary-500 font-medium transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Вход
                 </Link>
                 <Link 
                   to="/register" 
-                  className="btn gradient-primary w-full text-center text-white"
+                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium text-center transition-all duration-300 shadow-sm hover:shadow"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Регистрация
+                  Начать бесплатно
                 </Link>
               </>
             )}
