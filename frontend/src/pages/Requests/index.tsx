@@ -2,26 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AppDispatch, RootState } from '../../redux/store';
 import { fetchRequests } from '../../redux/slices/requestsSlice';
-import { 
-  Container, 
-  Typography, 
-  Paper, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow,
-  Switch,
-  FormControlLabel,
-  Box,
-  Chip,
-  Pagination,
-  CircularProgress,
-  Alert
-} from '@mui/material';
-import { format } from 'date-fns';
-import ru from 'date-fns/locale/ru';
 
 const RequestsPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -34,12 +14,8 @@ const RequestsPage: React.FC = () => {
     dispatch(fetchRequests());
   }, [dispatch]);
 
-  const handleChangePage = (event: React.ChangeEvent<unknown>, newPage: number) => {
+  const handleChangePage = (newPage: number) => {
     setPage(newPage);
-  };
-
-  const handleToggleCostBreakdown = () => {
-    setShowCostBreakdown(!showCostBreakdown);
   };
 
   // Функция для форматирования стоимости
@@ -47,134 +23,185 @@ const RequestsPage: React.FC = () => {
     return `$${cost.toFixed(6)}`;
   };
 
+  // Функция для форматирования даты
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
   // Компонент для отображения стоимости с декомпозицией или без
   const CostDisplay = ({ inputCost, outputCost, totalCost }: { inputCost: number, outputCost: number, totalCost: number }) => {
     if (showCostBreakdown) {
       return (
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            Ввод: {formatCost(inputCost)}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Вывод: {formatCost(outputCost)}
-          </Typography>
-          <Typography variant="body2" fontWeight="bold">
-            Итого: {formatCost(totalCost)}
-          </Typography>
-        </Box>
+        <div className="space-y-1">
+          <p className="text-sm text-gray-400">Ввод: {formatCost(inputCost)}</p>
+          <p className="text-sm text-gray-400">Вывод: {formatCost(outputCost)}</p>
+          <p className="font-medium">Итого: {formatCost(totalCost)}</p>
+        </div>
       );
     }
-    return <Typography>{formatCost(totalCost)}</Typography>;
+    return <p>{formatCost(totalCost)}</p>;
   };
 
-  if (loading) {
-    return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
+  // Временные данные для демонстрации, если запросы еще не загружены
+  const demoRequests = [
+    {
+      id: '1',
+      created_at: new Date().toISOString(),
+      model: { id: '1', name: 'GPT-4' },
+      input_tokens: 1256,
+      output_tokens: 748,
+      input_cost: 0.000315,
+      output_cost: 0.000674,
+      total_cost: 0.000989
+    },
+    {
+      id: '2',
+      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      model: { id: '2', name: 'Claude 3.5 Sonnet' },
+      input_tokens: 3450,
+      output_tokens: 1290,
+      input_cost: 0.000863,
+      output_cost: 0.001935,
+      total_cost: 0.002798
+    },
+    {
+      id: '3',
+      created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      model: { id: '3', name: 'Mistral Medium' },
+      input_tokens: 890,
+      output_tokens: 566,
+      input_cost: 0.000223,
+      output_cost: 0.000425,
+      total_cost: 0.000648
+    }
+  ];
 
-  if (error) {
-    return (
-      <Container sx={{ mt: 4 }}>
-        <Alert severity="error">{error}</Alert>
-      </Container>
-    );
-  }
+  // Используем демо-данные, если запросы еще не загружены
+  const displayRequests = requests.length > 0 ? requests : demoRequests;
+  
+  // Рассчитываем, какие запросы показывать на текущей странице
+  const paginatedRequests = displayRequests.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const pageCount = Math.ceil(displayRequests.length / rowsPerPage);
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom sx={{ 
-        background: 'linear-gradient(45deg, #6352b1 0%, #4568DC 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        fontWeight: 'bold',
-        mb: 3
-      }}>
-        История запросов
-      </Typography>
-      
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showCostBreakdown}
-              onChange={handleToggleCostBreakdown}
-              color="primary"
-            />
-          }
-          label="Показать разбивку стоимости"
-        />
-      </Box>
+    <div className="space-y-8 animate-fade-in">
+      <section className="py-10 rounded-xl glass-card">
+        <div className="text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4 gradient-text">История запросов</h1>
+          <p className="text-gray-300 max-w-3xl mx-auto">
+            Отслеживайте использование моделей и стоимость запросов.
+          </p>
+        </div>
+      </section>
 
-      <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell><Typography fontWeight="bold">Дата</Typography></TableCell>
-                <TableCell><Typography fontWeight="bold">Модель</Typography></TableCell>
-                <TableCell><Typography fontWeight="bold">Входных токенов</Typography></TableCell>
-                <TableCell><Typography fontWeight="bold">Выходных токенов</Typography></TableCell>
-                <TableCell><Typography fontWeight="bold">Стоимость</Typography></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {requests.length > 0 ? (
-                requests
-                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
-                  .map((request) => (
-                    <TableRow key={request.id} hover>
-                      <TableCell>
-                        {format(new Date(request.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={request.model.name} 
-                          size="small" 
-                          sx={{ 
-                            background: 'linear-gradient(45deg, #6352b1 0%, #4568DC 100%)',
-                            color: 'white'
-                          }} 
-                        />
-                      </TableCell>
-                      <TableCell>{request.input_tokens.toLocaleString()}</TableCell>
-                      <TableCell>{request.output_tokens.toLocaleString()}</TableCell>
-                      <TableCell>
+      <section className="space-y-6">
+        <div className="flex justify-end">
+          <label className="inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="sr-only peer"
+              checked={showCostBreakdown}
+              onChange={() => setShowCostBreakdown(!showCostBreakdown)}
+            />
+            <div className="relative w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-primary-600 peer-focus:ring-2 peer-focus:ring-primary-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+            <span className="ml-3 text-gray-300">Показать разбивку стоимости</span>
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center text-red-500 py-8">
+            <h2 className="text-xl font-bold mb-2">Ошибка загрузки</h2>
+            <p>{error}</p>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-700">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Дата</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Модель</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Входные токены</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Выходные токены</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Стоимость</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {paginatedRequests.map((request) => (
+                    <tr key={request.id} className="hover:bg-gray-700/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                        {formatDate(request.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 text-xs rounded-full bg-gradient-to-r from-primary-700 to-violet-700 text-white">
+                          {request.model.name}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                        {request.input_tokens.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                        {request.output_tokens.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-300">
                         <CostDisplay 
                           inputCost={request.input_cost} 
                           outputCost={request.output_cost} 
                           totalCost={request.total_cost} 
                         />
-                      </TableCell>
-                    </TableRow>
-                  ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    <Typography variant="body1">
-                      История запросов пуста
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {requests.length > rowsPerPage && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-            <Pagination
-              count={Math.ceil(requests.length / rowsPerPage)}
-              page={page}
-              onChange={handleChangePage}
-              color="primary"
-            />
-          </Box>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {pageCount > 1 && (
+              <div className="flex justify-center mt-6">
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => handleChangePage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className={`px-3 py-1 rounded-md ${page === 1 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+                  >
+                    &laquo;
+                  </button>
+                  
+                  {Array.from({ length: pageCount }).map((_, index) => (
+                    <button
+                      key={index + 1}
+                      onClick={() => handleChangePage(index + 1)}
+                      className={`px-3 py-1 rounded-md ${page === index + 1 ? 'bg-primary-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => handleChangePage(Math.min(pageCount, page + 1))}
+                    disabled={page === pageCount}
+                    className={`px-3 py-1 rounded-md ${page === pageCount ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+                  >
+                    &raquo;
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
-      </Paper>
-    </Container>
+      </section>
+    </div>
   );
 };
 

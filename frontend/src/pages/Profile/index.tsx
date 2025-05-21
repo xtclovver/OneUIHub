@@ -1,35 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Container, Typography, Grid, Box, Paper, Tabs, Tab } from "@mui/material";
 import { useSelector } from "react-redux";
 import LimitsDisplay from "../../components/user/LimitsDisplay";
 import ApiKeyManager from "../../components/user/ApiKeyManager";
 import { RootState } from "../../redux/store";
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`profile-tabpanel-${index}`}
-      aria-labelledby={`profile-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
 
 const ProfilePage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -48,13 +21,14 @@ const ProfilePage: React.FC = () => {
         // setUserLimits(response.data);
         
         // Временные данные для примера
-        setUserLimits({
-          monthlyTokenLimit: 1000000,
-          balance: 25.00,
-          tierName: "Pro"
-        });
-        
-        setLoading(false);
+        setTimeout(() => {
+          setUserLimits({
+            monthlyTokenLimit: 1000000,
+            balance: 25.00,
+            tierName: "Pro"
+          });
+          setLoading(false);
+        }, 1000);
       } catch (error) {
         console.error("Ошибка при загрузке данных профиля:", error);
         setLoading(false);
@@ -64,61 +38,64 @@ const ProfilePage: React.FC = () => {
     fetchProfileData();
   }, []);
 
-  const handleChangeTab = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 2,
-              display: "flex",
-              flexDirection: "column",
-              borderRadius: "12px",
-              background: "rgba(255, 255, 255, 0.9)",
-              backdropFilter: "blur(10px)",
-              boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <Typography variant="h4" component="h1" gutterBottom>
-              Профиль пользователя
-            </Typography>
-            
-            {user && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6">
-                  {user.email}
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Тир: {userLimits?.tierName || "Загрузка..."}
-                </Typography>
-              </Box>
-            )}
+    <div className="space-y-8 animate-fade-in">
+      <section className="py-10 rounded-xl glass-card">
+        <div className="text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4 gradient-text">Профиль пользователя</h1>
+          {user && (
+            <div>
+              <p className="text-xl text-white mb-1">{user.email}</p>
+              <p className="text-gray-300">
+                Тариф: <span className="text-primary-400">{userLimits?.tierName || "Загрузка..."}</span>
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
 
-            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-              <Tabs value={tabValue} onChange={handleChangeTab} aria-label="profile tabs">
-                <Tab label="Лимиты и баланс" />
-                <Tab label="API ключи" />
-              </Tabs>
-            </Box>
-            
-            <TabPanel value={tabValue} index={0}>
-              <LimitsDisplay 
-                loading={loading} 
-                limits={userLimits} 
-              />
-            </TabPanel>
-            
-            <TabPanel value={tabValue} index={1}>
-              <ApiKeyManager />
-            </TabPanel>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+      <section>
+        <div className="mb-6">
+          <div className="border-b border-gray-700">
+            <div className="flex -mb-px">
+              <button
+                className={`py-2 px-4 text-center ${
+                  tabValue === 0
+                    ? "border-b-2 border-primary-500 text-primary-500"
+                    : "text-gray-400 hover:text-gray-300"
+                }`}
+                onClick={() => setTabValue(0)}
+              >
+                Лимиты и баланс
+              </button>
+              <button
+                className={`py-2 px-4 text-center ${
+                  tabValue === 1
+                    ? "border-b-2 border-primary-500 text-primary-500"
+                    : "text-gray-400 hover:text-gray-300"
+                }`}
+                onClick={() => setTabValue(1)}
+              >
+                API ключи
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          {tabValue === 0 && (
+            <LimitsDisplay 
+              loading={loading} 
+              limits={userLimits} 
+            />
+          )}
+          
+          {tabValue === 1 && (
+            <ApiKeyManager />
+          )}
+        </div>
+      </section>
+    </div>
   );
 };
 
