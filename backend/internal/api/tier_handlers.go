@@ -45,7 +45,7 @@ func (h *TierHandlers) RegisterRoutes(r chi.Router) {
 // GetTiers возвращает список всех тиров для пользователей
 func (h *TierHandlers) GetTiers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	tiers, err := h.tierService.ListTiers(ctx)
+	tiers, err := h.tierService.List(ctx)
 	if err != nil {
 		http.Error(w, "Не удалось получить список тиров", http.StatusInternalServerError)
 		return
@@ -66,11 +66,11 @@ func (h *TierHandlers) GetRateLimits(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if modelID != "" {
-		rateLimits, err = h.rateLimitService.ListRateLimitsByModel(ctx, modelID)
+		rateLimits, err = h.rateLimitService.ListByModelID(ctx, modelID)
 	} else if tierID != "" {
-		rateLimits, err = h.rateLimitService.ListRateLimitsByTier(ctx, tierID)
+		rateLimits, err = h.rateLimitService.ListByTierID(ctx, tierID)
 	} else {
-		rateLimits, err = h.rateLimitService.ListRateLimits(ctx)
+		rateLimits, err = h.rateLimitService.List(ctx)
 	}
 
 	if err != nil {
@@ -84,7 +84,7 @@ func (h *TierHandlers) GetRateLimits(w http.ResponseWriter, r *http.Request) {
 // GetAllTiers возвращает список всех тиров для администратора
 func (h *TierHandlers) GetAllTiers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	tiers, err := h.tierService.ListTiers(ctx)
+	tiers, err := h.tierService.List(ctx)
 	if err != nil {
 		http.Error(w, "Не удалось получить список тиров", http.StatusInternalServerError)
 		return
@@ -117,12 +117,13 @@ func (h *TierHandlers) CreateTier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	if err := h.tierService.CreateTier(ctx, tier); err != nil {
+	createdTier, err := h.tierService.Create(ctx, tier)
+	if err != nil {
 		http.Error(w, "Не удалось создать тир", http.StatusInternalServerError)
 		return
 	}
 
-	respondJSON(w, tier, http.StatusCreated)
+	respondJSON(w, createdTier, http.StatusCreated)
 }
 
 // UpdateTier обновляет существующий тир
@@ -135,24 +136,21 @@ func (h *TierHandlers) UpdateTier(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	tier, err := h.tierService.GetTier(ctx, id)
-	if err != nil {
-		http.Error(w, "Тир не найден", http.StatusNotFound)
-		return
+	tier := &domain.Tier{
+		Name:        req.Name,
+		Description: req.Description,
+		IsFree:      req.IsFree,
+		Price:       req.Price,
 	}
 
-	tier.Name = req.Name
-	tier.Description = req.Description
-	tier.IsFree = req.IsFree
-	tier.Price = req.Price
-
-	if err := h.tierService.UpdateTier(ctx, tier); err != nil {
+	ctx := r.Context()
+	updatedTier, err := h.tierService.Update(ctx, id, tier)
+	if err != nil {
 		http.Error(w, "Не удалось обновить тир", http.StatusInternalServerError)
 		return
 	}
 
-	respondJSON(w, tier, http.StatusOK)
+	respondJSON(w, updatedTier, http.StatusOK)
 }
 
 // DeleteTier удаляет тир
@@ -160,7 +158,7 @@ func (h *TierHandlers) DeleteTier(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	ctx := r.Context()
-	if err := h.tierService.DeleteTier(ctx, id); err != nil {
+	if err := h.tierService.Delete(ctx, id); err != nil {
 		http.Error(w, "Не удалось удалить тир", http.StatusInternalServerError)
 		return
 	}
@@ -181,7 +179,7 @@ type RateLimitRequest struct {
 // GetAllRateLimits возвращает список всех ограничений для администратора
 func (h *TierHandlers) GetAllRateLimits(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	rateLimits, err := h.rateLimitService.ListRateLimits(ctx)
+	rateLimits, err := h.rateLimitService.List(ctx)
 	if err != nil {
 		http.Error(w, "Не удалось получить список ограничений", http.StatusInternalServerError)
 		return
@@ -208,12 +206,13 @@ func (h *TierHandlers) CreateRateLimit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	if err := h.rateLimitService.CreateRateLimit(ctx, rateLimit); err != nil {
+	createdRateLimit, err := h.rateLimitService.Create(ctx, rateLimit)
+	if err != nil {
 		http.Error(w, "Не удалось создать ограничение", http.StatusInternalServerError)
 		return
 	}
 
-	respondJSON(w, rateLimit, http.StatusCreated)
+	respondJSON(w, createdRateLimit, http.StatusCreated)
 }
 
 // UpdateRateLimit обновляет существующее ограничение
@@ -226,26 +225,23 @@ func (h *TierHandlers) UpdateRateLimit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	rateLimit, err := h.rateLimitService.GetRateLimit(ctx, id)
-	if err != nil {
-		http.Error(w, "Ограничение не найдено", http.StatusNotFound)
-		return
+	rateLimit := &domain.RateLimit{
+		ModelID:           req.ModelID,
+		TierID:            req.TierID,
+		RequestsPerMinute: req.RequestsPerMinute,
+		RequestsPerDay:    req.RequestsPerDay,
+		TokensPerMinute:   req.TokensPerMinute,
+		TokensPerDay:      req.TokensPerDay,
 	}
 
-	rateLimit.ModelID = req.ModelID
-	rateLimit.TierID = req.TierID
-	rateLimit.RequestsPerMinute = req.RequestsPerMinute
-	rateLimit.RequestsPerDay = req.RequestsPerDay
-	rateLimit.TokensPerMinute = req.TokensPerMinute
-	rateLimit.TokensPerDay = req.TokensPerDay
-
-	if err := h.rateLimitService.UpdateRateLimit(ctx, rateLimit); err != nil {
+	ctx := r.Context()
+	updatedRateLimit, err := h.rateLimitService.Update(ctx, id, rateLimit)
+	if err != nil {
 		http.Error(w, "Не удалось обновить ограничение", http.StatusInternalServerError)
 		return
 	}
 
-	respondJSON(w, rateLimit, http.StatusOK)
+	respondJSON(w, updatedRateLimit, http.StatusOK)
 }
 
 // DeleteRateLimit удаляет ограничение
@@ -253,7 +249,7 @@ func (h *TierHandlers) DeleteRateLimit(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	ctx := r.Context()
-	if err := h.rateLimitService.DeleteRateLimit(ctx, id); err != nil {
+	if err := h.rateLimitService.Delete(ctx, id); err != nil {
 		http.Error(w, "Не удалось удалить ограничение", http.StatusInternalServerError)
 		return
 	}

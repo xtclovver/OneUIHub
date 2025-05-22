@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type requestRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewRequestRepository создает новый репозиторий запросов
-func NewRequestRepository(db *sql.DB) *requestRepository {
+func NewRequestRepository(db *sqlx.DB) *requestRepository {
 	return &requestRepository{
 		db: db,
 	}
@@ -174,6 +175,48 @@ func (r *requestRepository) ListByModelID(ctx context.Context, modelID string, o
 			return nil, err
 		}
 		requests = append(requests, request)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return requests, nil
+}
+
+// FindByUserID находит запросы пользователя с пагинацией
+func (r *requestRepository) FindByUserID(ctx context.Context, userID string, limit, offset int) ([]domain.Request, error) {
+	query := `
+		SELECT id, user_id, model_id, input_tokens, output_tokens, input_cost, output_cost, total_cost, created_at
+		FROM requests
+		WHERE user_id = ?
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []domain.Request
+	for rows.Next() {
+		var req domain.Request
+		if err := rows.Scan(
+			&req.ID,
+			&req.UserID,
+			&req.ModelID,
+			&req.InputTokens,
+			&req.OutputTokens,
+			&req.InputCost,
+			&req.OutputCost,
+			&req.TotalCost,
+			&req.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		requests = append(requests, req)
 	}
 
 	if err := rows.Err(); err != nil {

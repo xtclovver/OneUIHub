@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type rateLimitRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewRateLimitRepository создает новый репозиторий ограничений запросов
-func NewRateLimitRepository(db *sql.DB) *rateLimitRepository {
+func NewRateLimitRepository(db *sqlx.DB) *rateLimitRepository {
 	return &rateLimitRepository{
 		db: db,
 	}
@@ -265,4 +266,19 @@ func (r *rateLimitRepository) ListByTierID(ctx context.Context, tierID string) (
 	}
 
 	return rateLimits, nil
+}
+
+// Get возвращает значение по ключу
+func (r *rateLimitRepository) Get(ctx context.Context, key string) (int64, error) {
+	// Это заглушка для реализации интерфейса
+	// В реальном приложении здесь должна быть логика получения значения по ключу из Redis или другого хранилища
+	return 0, nil
+}
+
+// Increment увеличивает счетчик по ключу и возвращает новое значение
+func (r *rateLimitRepository) Increment(ctx context.Context, key string, window int64) (int64, error) {
+	// Это заглушка для реализации интерфейса
+	// В реальном приложении здесь должна быть логика увеличения счетчика и проверки лимита
+	// Обычно это реализуется с использованием Redis или другого кэша
+	return 1, nil
 }

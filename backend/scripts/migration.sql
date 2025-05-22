@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   tier_id VARCHAR(36) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'customer',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -116,11 +117,13 @@ INSERT INTO tiers (id, name, description, is_free, price) VALUES
 ('00000000-0000-0000-0000-000000000001', 'Free', 'Бесплатный план с базовыми возможностями', TRUE, 0.00),
 ('00000000-0000-0000-0000-000000000002', 'Starter', 'Стартовый план для небольших проектов', FALSE, 9.99),
 ('00000000-0000-0000-0000-000000000003', 'Pro', 'Профессиональный план для малого и среднего бизнеса', FALSE, 49.99),
-('00000000-0000-0000-0000-000000000004', 'Enterprise', 'Корпоративный план для крупных компаний', FALSE, 199.99);
+('00000000-0000-0000-0000-000000000004', 'Enterprise', 'Корпоративный план для крупных компаний', FALSE, 199.99),
+('00000000-0000-0000-0000-000000000005', 'Admin', 'Администратор', FALSE, 999999.99);
 
--- Добавление начального пользователя-администратора
-INSERT INTO users (id, email, password_hash, tier_id) VALUES
-('00000000-0000-0000-0000-000000000001', 'admin@oneaihub.com', '$2a$10$i7J/1UbSiQR1jYnVPzjV2uQ6NT/KKaZWwVpE1y7s.Y4.SWdLU2o5y', '00000000-0000-0000-0000-000000000004');
+
+-- Добавление начального пользователя-администратора (admin)
+INSERT INTO users (id, email, password_hash, tier_id, role) VALUES
+('00000000-0000-0000-0000-000000000001', 'admin@oneaihub.com', '$2a$10$EQpnWK9n1mh5BXlIAw4ir.cydFyuGDA96Nc0KxvXhtibOc99qFFgK', '00000000-0000-0000-0000-000000000004', 'admin');
 
 -- Добавление лимитов для администратора
 INSERT INTO user_limits (user_id, monthly_token_limit, balance) VALUES

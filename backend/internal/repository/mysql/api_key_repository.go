@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type apiKeyRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewApiKeyRepository создает новый репозиторий API ключей
-func NewApiKeyRepository(db *sql.DB) *apiKeyRepository {
+func NewApiKeyRepository(db *sqlx.DB) *apiKeyRepository {
 	return &apiKeyRepository{
 		db: db,
 	}
@@ -150,4 +151,33 @@ func (r *apiKeyRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM api_keys WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// FindByKey находит API ключ по значению ключа
+func (r *apiKeyRepository) FindByKey(ctx context.Context, key string) (*domain.ApiKey, error) {
+	query := `
+		SELECT id, user_id, key_hash, external_id, name, created_at, expires_at
+		FROM api_keys
+		WHERE key_hash = ?
+	`
+
+	var apiKey domain.ApiKey
+	err := r.db.QueryRowContext(ctx, query, key).Scan(
+		&apiKey.ID,
+		&apiKey.UserID,
+		&apiKey.KeyHash,
+		&apiKey.ExternalID,
+		&apiKey.Name,
+		&apiKey.CreatedAt,
+		&apiKey.ExpiresAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("API ключ не найден")
+		}
+		return nil, err
+	}
+
+	return &apiKey, nil
 }

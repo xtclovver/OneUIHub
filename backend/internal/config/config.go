@@ -25,12 +25,15 @@ type ServerConfig struct {
 
 // DatabaseConfig конфигурация базы данных
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	DBName          string
+	SSLMode         string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
 }
 
 // AuthConfig конфигурация авторизации
@@ -93,6 +96,21 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("неверное значение LITELLM_SYNC_INTERVAL: %w", err)
 	}
 
+	dbMaxOpenConns, err := strconv.Atoi(getEnv("DB_MAX_OPEN_CONNS", "10"))
+	if err != nil {
+		return nil, fmt.Errorf("неверное значение DB_MAX_OPEN_CONNS: %w", err)
+	}
+
+	dbMaxIdleConns, err := strconv.Atoi(getEnv("DB_MAX_IDLE_CONNS", "5"))
+	if err != nil {
+		return nil, fmt.Errorf("неверное значение DB_MAX_IDLE_CONNS: %w", err)
+	}
+
+	dbConnMaxLifetime, err := strconv.Atoi(getEnv("DB_CONN_MAX_LIFETIME", "3600"))
+	if err != nil {
+		return nil, fmt.Errorf("неверное значение DB_CONN_MAX_LIFETIME: %w", err)
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Port:            port,
@@ -101,12 +119,15 @@ func New() (*Config, error) {
 			ShutdownTimeout: time.Duration(shutdownTimeout) * time.Second,
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "3306"),
-			User:     getEnv("DB_USER", "root"),
-			Password: getEnv("DB_PASSWORD", "12341234"),
-			DBName:   getEnv("DB_NAME", "oneaihub"),
-			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+			Host:            getEnv("DB_HOST", "localhost"),
+			Port:            getEnv("DB_PORT", "3306"),
+			User:            getEnv("DB_USER", "root"),
+			Password:        getEnv("DB_PASSWORD", "12341234"),
+			DBName:          getEnv("DB_NAME", "oneaihub"),
+			SSLMode:         getEnv("DB_SSL_MODE", "disable"),
+			MaxOpenConns:    dbMaxOpenConns,
+			MaxIdleConns:    dbMaxIdleConns,
+			ConnMaxLifetime: time.Duration(dbConnMaxLifetime) * time.Second,
 		},
 		Auth: AuthConfig{
 			JWTSecret:            getEnv("JWT_SECRET", "super-secret-key"),

@@ -4,7 +4,8 @@ import companyReducer from './slices/companySlice';
 import modelReducer from './slices/modelSlice';
 import requestsReducer from './slices/requestsSlice';
 
-export const store = configureStore({
+// Настройка Redux store
+const store = configureStore({
   reducer: {
     auth: authReducer,
     companies: companyReducer,
@@ -17,5 +18,8 @@ export const store = configureStore({
     })
 });
 
+// Типы для использования в компонентах
 export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch; 
+export type AppDispatch = typeof store.dispatch;
+
+export default store; 

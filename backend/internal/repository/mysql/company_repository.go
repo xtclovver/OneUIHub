@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type companyRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewCompanyRepository создает новый репозиторий компаний
-func NewCompanyRepository(db *sql.DB) *companyRepository {
+func NewCompanyRepository(db *sqlx.DB) *companyRepository {
 	return &companyRepository{
 		db: db,
 	}
@@ -176,4 +177,33 @@ func (r *companyRepository) List(ctx context.Context) ([]domain.Company, error) 
 	}
 
 	return companies, nil
+}
+
+// FindByName находит компанию по имени
+func (r *companyRepository) FindByName(ctx context.Context, name string) (*domain.Company, error) {
+	query := `
+		SELECT id, name, logo_url, description, external_id, created_at, updated_at
+		FROM companies
+		WHERE name = ?
+	`
+
+	var company domain.Company
+	err := r.db.QueryRowContext(ctx, query, name).Scan(
+		&company.ID,
+		&company.Name,
+		&company.LogoURL,
+		&company.Description,
+		&company.ExternalID,
+		&company.CreatedAt,
+		&company.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Возвращаем nil, nil если компания не найдена
+		}
+		return nil, err
+	}
+
+	return &company, nil
 }

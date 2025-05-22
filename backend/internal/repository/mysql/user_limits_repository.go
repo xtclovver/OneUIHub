@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type userLimitsRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewUserLimitsRepository создает новый репозиторий лимитов пользователей
-func NewUserLimitsRepository(db *sql.DB) *userLimitsRepository {
+func NewUserLimitsRepository(db *sqlx.DB) *userLimitsRepository {
 	return &userLimitsRepository{
 		db: db,
 	}
@@ -86,4 +87,9 @@ func (r *userLimitsRepository) Delete(ctx context.Context, userID string) error 
 	query := `DELETE FROM user_limits WHERE user_id = ?`
 	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
+}
+
+// GetByUserID получает лимиты пользователя по ID пользователя (алиас для FindByUserID)
+func (r *userLimitsRepository) GetByUserID(ctx context.Context, userID string) (*domain.UserLimits, error) {
+	return r.FindByUserID(ctx, userID)
 }

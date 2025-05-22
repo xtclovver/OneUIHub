@@ -26,6 +26,9 @@ type LiteLLMClient interface {
 
 	// Проксирование запроса к модели
 	ProxyRequest(ctx context.Context, model string, request *domain.Request) (*domain.Response, error)
+
+	// Обработка запросов completions
+	ProxyCompletions(ctx context.Context, request map[string]interface{}) (map[string]interface{}, error)
 }
 
 // ModelSyncService интерфейс для синхронизации моделей

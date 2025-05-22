@@ -346,3 +346,50 @@ func (c *liteLLMClient) ProxyRequest(ctx context.Context, model string, request 
 
 	return result, nil
 }
+
+// ProxyCompletions проксирует запрос на завершение текста к LiteLLM API
+func (c *liteLLMClient) ProxyCompletions(ctx context.Context, request map[string]interface{}) (map[string]interface{}, error) {
+	url := fmt.Sprintf("%s/completions", c.baseURL)
+
+	// Преобразуем запрос в JSON
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при сериализации запроса: %w", err)
+	}
+
+	// Создаем HTTP запрос
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при создании HTTP запроса: %w", err)
+	}
+
+	// Устанавливаем заголовки
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+	}
+
+	// Выполняем запрос
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при выполнении HTTP запроса: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Проверяем статус ответа
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			return nil, fmt.Errorf("ошибка статуса %d от LiteLLM API", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("ошибка от LiteLLM API: %v", errorResponse)
+	}
+
+	// Декодируем ответ
+	var response map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("ошибка при десериализации ответа: %w", err)
+	}
+
+	return response, nil
+}

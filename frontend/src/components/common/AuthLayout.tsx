@@ -1,111 +1,109 @@
-import { FC } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import { Box, Container, Paper, Typography, useTheme } from '@mui/material';
+import { Link } from 'react-router-dom';
 
-const AuthLayout: FC = () => {
+// Макет для страниц аутентификации (логин, регистрация)
+const AuthLayout: React.FC = () => {
+  const theme = useTheme();
+
   return (
-    <div className="flex min-h-screen bg-neutral-50">
-      {/* Левая колонка - информация о сервисе */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-500 to-primary-700 text-white p-12 flex-col justify-between relative overflow-hidden">
-        {/* Декоративные элементы */}
-        <div className="absolute inset-0 pointer-events-none">
-          <svg className="absolute right-0 top-0 h-64 w-64 text-white opacity-10" viewBox="0 0 200 200" fill="none">
-            <path d="M196,0 C196,108.16 108.16,196 0,196" stroke="currentColor" strokeWidth="12" />
-          </svg>
-          <svg className="absolute left-0 bottom-0 h-64 w-64 text-white opacity-10" viewBox="0 0 200 200" fill="none">
-            <path d="M4,196 C4,87.84 91.84,0 200,0" stroke="currentColor" strokeWidth="12" />
-          </svg>
-        </div>
-        
-        <div className="relative z-10">
-          <Link to="/" className="text-3xl font-bold text-white">OneAI Hub</Link>
-          <div className="mt-12 max-w-lg">
-            <h1 className="text-4xl font-bold mb-6">Единый доступ к лучшим моделям ИИ</h1>
-            <p className="text-xl mb-8 text-white/90">
-              OneAI Hub предоставляет простой и удобный интерфейс для работы с множеством
-              AI-моделей через единый API. Управляйте доступом, отслеживайте использование и
-              оптимизируйте расходы.
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 mr-3" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M5 13l4 4L19 7" 
-                  />
-                </svg>
-                <span>Доступ к моделям OpenAI, Anthropic, Mistral и других</span>
-              </div>
-              <div className="flex items-center">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 mr-3" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M5 13l4 4L19 7" 
-                  />
-                </svg>
-                <span>Детальное отслеживание запросов и расходов</span>
-              </div>
-              <div className="flex items-center">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 mr-3" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M5 13l4 4L19 7" 
-                  />
-                </svg>
-                <span>Гибкие тарифы с различными лимитами</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-12 relative z-10">
-          <p className="text-sm text-white/70">
-            &copy; {new Date().getFullYear()} OneAI Hub. Все права защищены.
-          </p>
-        </div>
-      </div>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        background: theme.palette.background.default,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Декоративные элементы фона */}
+      <Box
+        sx={{
+          position: 'absolute',
+          width: '50%',
+          height: '50%',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, rgba(120, 85, 245, 0.1) 0%, rgba(70, 140, 220, 0.1) 100%)',
+          filter: 'blur(80px)',
+          top: '-10%',
+          right: '-10%',
+          zIndex: 0
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          width: '40%',
+          height: '40%',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, rgba(245, 85, 85, 0.1) 0%, rgba(220, 140, 70, 0.1) 100%)',
+          filter: 'blur(80px)',
+          bottom: '-10%',
+          left: '-10%',
+          zIndex: 0
+        }}
+      />
 
-      {/* Правая колонка - форма аутентификации */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8">
-            <Link to="/" className="text-3xl font-bold gradient-text">OneAI Hub</Link>
-            <p className="mt-2 text-gray-600">
-              Единый доступ к лучшим моделям ИИ
-            </p>
-          </div>
+      {/* Логотип и заголовок */}
+      <Box
+        sx={{
+          position: 'relative',
+          py: 6,
+          textAlign: 'center',
+          zIndex: 1,
+        }}
+      >
+        <Typography
+          variant="h4"
+          component={Link}
+          to="/"
+          sx={{
+            fontWeight: 700,
+            color: theme.palette.text.primary,
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          OneAI Hub
+        </Typography>
+      </Box>
+
+      {/* Основной контент */}
+      <Container maxWidth="sm" sx={{ mb: 8, position: 'relative', zIndex: 1 }}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
           <Outlet />
-          <div className="mt-8 text-center lg:hidden">
-            <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} OneAI Hub. Все права защищены.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+        </Paper>
+      </Container>
+
+      {/* Подвал */}
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 1,
+          mt: 'auto',
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          © {new Date().getFullYear()} OneAI Hub. Все права защищены.
+        </Typography>
+      </Box>
+    </Box>
   );
 };
 

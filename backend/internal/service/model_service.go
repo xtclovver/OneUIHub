@@ -77,17 +77,37 @@ func (s *модельСервис) UpdateModelConfig(ctx context.Context, config
 }
 
 // GetAllModelsWithConfigs получает список всех моделей с их конфигурациями для админ-панели
-func (s *модельСервис) GetAllModelsWithConfigs(ctx context.Context) ([]domain.Model, error) {
+func (s *модельСервис) GetAllModelsWithConfigs(ctx context.Context) ([]domain.ModelWithConfig, error) {
 	models, err := s.моделиРепо.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось получить список моделей: %w", err)
 	}
 
-	// Для фронтенда нам часто нужны модели с конфигурациями
-	// но тут мы не добавляем их для простоты
-	// В реальном приложении стоит возвращать модели с конфигурациями
+	result := make([]domain.ModelWithConfig, 0, len(models))
 
-	return models, nil
+	// Для каждой модели пытаемся получить конфигурацию
+	for _, model := range models {
+		config, err := s.конфигМоделиРепо.FindByModelID(ctx, model.ID)
+
+		// Если конфигурация не найдена или произошла ошибка, создаем пустую конфигурацию
+		if err != nil || config == nil {
+			config = &domain.ModelConfig{
+				ModelID:         model.ID,
+				IsFree:          false,
+				IsEnabled:       false,
+				InputTokenCost:  0,
+				OutputTokenCost: 0,
+			}
+		}
+
+		// Добавляем модель с конфигурацией в результат
+		result = append(result, domain.ModelWithConfig{
+			Model:  model,
+			Config: *config,
+		})
+	}
+
+	return result, nil
 }
 
 // CreateModelConfig создает новую конфигурацию модели
@@ -156,4 +176,103 @@ func (s *модельСервис) UpdateModelConfigParams(
 	}
 
 	return config, nil
+}
+
+// Create создает новую модель
+func (s *модельСервис) Create(ctx context.Context, input *domain.Model) (*domain.Model, error) {
+	// Проверяем, существует ли компания
+	_, err := s.компанииРепо.FindByID(ctx, input.CompanyID)
+	if err != nil {
+		return nil, fmt.Errorf("компания не найдена: %w", err)
+	}
+
+	// Если ID не указан, генерируем новый
+	if input.ID == "" {
+		input.ID = uuid.New().String()
+	}
+
+	// Устанавливаем время создания
+	now := time.Now()
+	input.CreatedAt = now
+	input.UpdatedAt = now
+
+	// Создаем модель в БД
+	if err := s.моделиРепо.Create(ctx, input); err != nil {
+		return nil, fmt.Errorf("не удалось создать модель: %w", err)
+	}
+
+	return input, nil
+}
+
+// Update обновляет существующую модель
+func (s *модельСервис) Update(ctx context.Context, id string, input *domain.Model) (*domain.Model, error) {
+	// Проверяем, существует ли модель
+	model, err := s.моделиРепо.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("модель не найдена: %w", err)
+	}
+
+	// Проверяем, существует ли компания
+	if input.CompanyID != "" && input.CompanyID != model.CompanyID {
+		_, err := s.компанииРепо.FindByID(ctx, input.CompanyID)
+		if err != nil {
+			return nil, fmt.Errorf("компания не найдена: %w", err)
+		}
+		model.CompanyID = input.CompanyID
+	}
+
+	// Обновляем поля модели
+	if input.Name != "" {
+		model.Name = input.Name
+	}
+	if input.Description != "" {
+		model.Description = input.Description
+	}
+	if input.Features != "" {
+		model.Features = input.Features
+	}
+	if input.ExternalID != "" {
+		model.ExternalID = input.ExternalID
+	}
+
+	// Обновляем время изменения
+	model.UpdatedAt = time.Now()
+
+	// Обновляем модель в БД
+	if err := s.моделиРепо.Update(ctx, model); err != nil {
+		return nil, fmt.Errorf("не удалось обновить модель: %w", err)
+	}
+
+	return model, nil
+}
+
+// Delete удаляет модель
+func (s *модельСервис) Delete(ctx context.Context, id string) error {
+	// Проверяем, существует ли модель
+	_, err := s.моделиРепо.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("модель не найдена: %w", err)
+	}
+
+	// Удаляем модель
+	if err := s.моделиРепо.Delete(ctx, id); err != nil {
+		return fmt.Errorf("не удалось удалить модель: %w", err)
+	}
+
+	return nil
+}
+
+// GetByID получает модель по ID
+func (s *модельСервис) GetByID(ctx context.Context, id string) (*domain.Model, error) {
+	return s.моделиРепо.FindByID(ctx, id)
+}
+
+// List возвращает список всех моделей
+func (s *модельСервис) List(ctx context.Context) ([]domain.Model, error) {
+	return s.моделиРепо.List(ctx)
+}
+
+// ListByCompanyID получает список моделей по ID компании
+func (s *модельСервис) ListByCompanyID(ctx context.Context, companyID string) ([]domain.Model, error) {
+	return s.моделиРепо.ListByCompanyID(ctx, companyID)
 }

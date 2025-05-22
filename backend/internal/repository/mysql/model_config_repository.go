@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type modelConfigRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewModelConfigRepository создает новый репозиторий конфигураций моделей
-func NewModelConfigRepository(db *sql.DB) *modelConfigRepository {
+func NewModelConfigRepository(db *sqlx.DB) *modelConfigRepository {
 	return &modelConfigRepository{
 		db: db,
 	}

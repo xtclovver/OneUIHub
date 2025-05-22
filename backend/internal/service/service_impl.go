@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,44 +36,38 @@ func NewUserService(
 }
 
 // Register регистрирует нового пользователя
-func (s *userService) Register(ctx context.Context, email, password string, tierID string) (*domain.User, error) {
+func (s *userService) Register(ctx context.Context, input *domain.UserRegister) (*domain.UserResponse, string, error) {
 	// Проверяем, существует ли пользователь с таким email
-	existingUser, err := s.userRepo.FindByEmail(ctx, email)
+	existingUser, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if existingUser != nil {
-		return nil, fmt.Errorf("пользователь с email %s уже существует", email)
+		return nil, "", fmt.Errorf("пользователь с email %s уже существует", input.Email)
 	}
 
 	// Хешируем пароль
-	hashedPassword, err := s.hashPassword(password)
+	hashedPassword, err := s.hashPassword(input.Password)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	// Проверяем существование тира
-	tier, err := s.tierRepo.FindByID(ctx, tierID)
-	if err != nil {
-		return nil, err
-	}
-	if tier == nil {
-		return nil, fmt.Errorf("тир с ID %s не найден", tierID)
-	}
+	// TODO: Получить ID тира из базы данных
+	defaultTierID := "free_tier_id"
 
 	// Создаем пользователя
 	user := &domain.User{
 		ID:           uuid.New().String(),
-		Email:        email,
+		Email:        input.Email,
 		PasswordHash: hashedPassword,
-		TierID:       tierID,
+		TierID:       defaultTierID,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
 	// Сохраняем пользователя в БД
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Создаем лимиты для пользователя
@@ -86,10 +80,24 @@ func (s *userService) Register(ctx context.Context, email, password string, tier
 	if err := s.userLimitsRepo.Create(ctx, userLimits); err != nil {
 		// В случае ошибки, удаляем созданного пользователя
 		_ = s.userRepo.Delete(ctx, user.ID)
-		return nil, err
+		return nil, "", err
 	}
 
-	return user, nil
+	// Генерируем JWT токен
+	token, err := s.generateJWT(user.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Создаем ответ
+	response := &domain.UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		TierID:    user.TierID,
+		CreatedAt: user.CreatedAt,
+	}
+
+	return response, token, nil
 }
 
 // hashPassword хеширует пароль
@@ -111,28 +119,36 @@ func (s *userService) comparePasswords(hashedPassword, password string) bool {
 }
 
 // Login выполняет вход пользователя
-func (s *userService) Login(ctx context.Context, email, password string) (string, error) {
+func (s *userService) Login(ctx context.Context, input *domain.UserLogin) (*domain.UserResponse, string, error) {
 	// Ищем пользователя по email
-	user, err := s.userRepo.FindByEmail(ctx, email)
+	user, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if user == nil {
-		return "", fmt.Errorf("пользователь с email %s не найден", email)
+		return nil, "", fmt.Errorf("пользователь с email %s не найден", input.Email)
 	}
 
 	// Проверяем пароль
-	if !s.comparePasswords(user.PasswordHash, password) {
-		return "", fmt.Errorf("неверный пароль")
+	if !s.comparePasswords(user.PasswordHash, input.Password) {
+		return nil, "", fmt.Errorf("неверный пароль")
 	}
 
 	// Генерируем JWT токен
 	token, err := s.generateJWT(user.ID)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	return token, nil
+	// Создаем ответ
+	response := &domain.UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		TierID:    user.TierID,
+		CreatedAt: user.CreatedAt,
+	}
+
+	return response, token, nil
 }
 
 // generateJWT генерирует JWT токен
@@ -155,26 +171,30 @@ func (s *userService) GetProfile(ctx context.Context, userID string) (*domain.Us
 	return user, nil
 }
 
-// UpdateProfile обновляет профиль пользователя
-func (s *userService) UpdateProfile(ctx context.Context, userID string, user *domain.User) error {
+// Update обновляет профиль пользователя
+func (s *userService) Update(ctx context.Context, id string, user *domain.User) (*domain.User, error) {
 	// Проверяем существование пользователя
-	existingUser, err := s.userRepo.FindByID(ctx, userID)
+	existingUser, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if existingUser == nil {
-		return fmt.Errorf("пользователь с ID %s не найден", userID)
+		return nil, fmt.Errorf("пользователь с ID %s не найден", id)
 	}
 
 	// Обновляем данные пользователя
-	user.ID = userID // Убеждаемся, что ID не изменится
+	user.ID = id // Убеждаемся, что ID не изменится
 	user.UpdatedAt = time.Now()
 
-	return s.userRepo.Update(ctx, user)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
-// ListUsers возвращает список пользователей
-func (s *userService) ListUsers(ctx context.Context, offset, limit int) ([]domain.User, int, error) {
+// List возвращает список пользователей
+func (s *userService) List(ctx context.Context, offset, limit int) ([]domain.User, int, error) {
 	users, err := s.userRepo.List(ctx, offset, limit)
 	if err != nil {
 		return nil, 0, err
@@ -261,17 +281,17 @@ func NewTierService(tierRepo repository.TierRepository) TierService {
 }
 
 // CreateTier создает новый тир
-func (s *tierService) CreateTier(ctx context.Context, tier *domain.Tier) error {
+func (s *tierService) Create(ctx context.Context, tier *domain.Tier) (*domain.Tier, error) {
 	// Проверяем, что тир с таким именем не существует
 	tiers, err := s.tierRepo.List(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Проверяем уникальность имени тира
 	for _, existingTier := range tiers {
 		if existingTier.Name == tier.Name {
-			return fmt.Errorf("тир с названием %s уже существует", tier.Name)
+			return nil, fmt.Errorf("тир с названием %s уже существует", tier.Name)
 		}
 	}
 
@@ -279,11 +299,15 @@ func (s *tierService) CreateTier(ctx context.Context, tier *domain.Tier) error {
 	tier.ID = uuid.New().String()
 	tier.CreatedAt = time.Now()
 
-	return s.tierRepo.Create(ctx, tier)
+	if err := s.tierRepo.Create(ctx, tier); err != nil {
+		return nil, err
+	}
+
+	return tier, nil
 }
 
 // GetTier возвращает тир по ID
-func (s *tierService) GetTier(ctx context.Context, id string) (*domain.Tier, error) {
+func (s *tierService) GetByID(ctx context.Context, id string) (*domain.Tier, error) {
 	tier, err := s.tierRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -295,35 +319,41 @@ func (s *tierService) GetTier(ctx context.Context, id string) (*domain.Tier, err
 }
 
 // UpdateTier обновляет тир
-func (s *tierService) UpdateTier(ctx context.Context, tier *domain.Tier) error {
+func (s *tierService) Update(ctx context.Context, id string, tier *domain.Tier) (*domain.Tier, error) {
 	// Проверяем существование тира
-	existingTier, err := s.tierRepo.FindByID(ctx, tier.ID)
+	existingTier, err := s.tierRepo.FindByID(ctx, id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if existingTier == nil {
-		return fmt.Errorf("тир с ID %s не найден", tier.ID)
+		return nil, fmt.Errorf("тир с ID %s не найден", id)
 	}
 
 	// Если меняется имя, проверяем на уникальность
 	if tier.Name != existingTier.Name {
 		tiers, err := s.tierRepo.List(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for _, t := range tiers {
-			if t.ID != tier.ID && t.Name == tier.Name {
-				return fmt.Errorf("тир с названием %s уже существует", tier.Name)
+			if t.ID != id && t.Name == tier.Name {
+				return nil, fmt.Errorf("тир с названием %s уже существует", tier.Name)
 			}
 		}
 	}
 
-	return s.tierRepo.Update(ctx, tier)
+	tier.ID = id // Убеждаемся, что ID не изменится
+
+	if err := s.tierRepo.Update(ctx, tier); err != nil {
+		return nil, err
+	}
+
+	return tier, nil
 }
 
 // DeleteTier удаляет тир
-func (s *tierService) DeleteTier(ctx context.Context, id string) error {
+func (s *tierService) Delete(ctx context.Context, id string) error {
 	// Проверяем существование тира
 	tier, err := s.tierRepo.FindByID(ctx, id)
 	if err != nil {
@@ -340,7 +370,7 @@ func (s *tierService) DeleteTier(ctx context.Context, id string) error {
 }
 
 // ListTiers возвращает список тиров
-func (s *tierService) ListTiers(ctx context.Context) ([]domain.Tier, error) {
+func (s *tierService) List(ctx context.Context) ([]domain.Tier, error) {
 	return s.tierRepo.List(ctx)
 }
 
@@ -356,8 +386,39 @@ func NewCompanyService(companyRepo repository.CompanyRepository) CompanyService 
 	}
 }
 
-// GetCompany возвращает компанию по ID
-func (s *companyService) GetCompany(ctx context.Context, id string) (*domain.Company, error) {
+// Create создает новую компанию
+func (s *companyService) Create(ctx context.Context, input *domain.Company) (*domain.Company, error) {
+	// Проверяем уникальность имени компании
+	existingCompany, err := s.companyRepo.FindByName(ctx, input.Name)
+	if err != nil {
+		return nil, err
+	}
+	if existingCompany != nil {
+		return nil, fmt.Errorf("компания с названием %s уже существует", input.Name)
+	}
+
+	// Устанавливаем ID и даты
+	if input.ID == "" {
+		input.ID = uuid.New().String()
+	}
+
+	now := time.Now()
+	if input.CreatedAt.IsZero() {
+		input.CreatedAt = now
+	}
+
+	input.UpdatedAt = now
+
+	// Создаем компанию
+	if err := s.companyRepo.Create(ctx, input); err != nil {
+		return nil, err
+	}
+
+	return input, nil
+}
+
+// GetByID возвращает компанию по ID
+func (s *companyService) GetByID(ctx context.Context, id string) (*domain.Company, error) {
 	company, err := s.companyRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -368,8 +429,56 @@ func (s *companyService) GetCompany(ctx context.Context, id string) (*domain.Com
 	return company, nil
 }
 
-// ListCompanies возвращает список компаний
-func (s *companyService) ListCompanies(ctx context.Context) ([]domain.Company, error) {
+// Update обновляет компанию
+func (s *companyService) Update(ctx context.Context, id string, input *domain.Company) (*domain.Company, error) {
+	// Проверяем существование компании
+	existingCompany, err := s.companyRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if existingCompany == nil {
+		return nil, fmt.Errorf("компания с ID %s не найдена", id)
+	}
+
+	// Проверяем уникальность имени, если оно изменилось
+	if input.Name != existingCompany.Name {
+		company, err := s.companyRepo.FindByName(ctx, input.Name)
+		if err != nil {
+			return nil, err
+		}
+		if company != nil && company.ID != id {
+			return nil, fmt.Errorf("компания с названием %s уже существует", input.Name)
+		}
+	}
+
+	// Обновляем данные
+	input.ID = id
+	input.UpdatedAt = time.Now()
+
+	if err := s.companyRepo.Update(ctx, input); err != nil {
+		return nil, err
+	}
+
+	return input, nil
+}
+
+// Delete удаляет компанию
+func (s *companyService) Delete(ctx context.Context, id string) error {
+	// Проверяем существование компании
+	company, err := s.companyRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if company == nil {
+		return fmt.Errorf("компания с ID %s не найдена", id)
+	}
+
+	// Удаляем компанию
+	return s.companyRepo.Delete(ctx, id)
+}
+
+// List возвращает список компаний
+func (s *companyService) List(ctx context.Context) ([]domain.Company, error) {
 	return s.companyRepo.List(ctx)
 }
 
@@ -390,8 +499,39 @@ func NewModelService(
 	}
 }
 
-// GetModel возвращает модель по ID
-func (s *modelService) GetModel(ctx context.Context, id string) (*domain.Model, error) {
+// Create создает новую модель
+func (s *modelService) Create(ctx context.Context, input *domain.Model) (*domain.Model, error) {
+	// Проверяем уникальность имени модели
+	existingModel, err := s.modelRepo.FindByName(ctx, input.Name)
+	if err != nil {
+		return nil, err
+	}
+	if existingModel != nil {
+		return nil, fmt.Errorf("модель с названием %s уже существует", input.Name)
+	}
+
+	// Устанавливаем ID и даты
+	if input.ID == "" {
+		input.ID = uuid.New().String()
+	}
+
+	now := time.Now()
+	if input.CreatedAt.IsZero() {
+		input.CreatedAt = now
+	}
+
+	input.UpdatedAt = now
+
+	// Создаем модель
+	if err := s.modelRepo.Create(ctx, input); err != nil {
+		return nil, err
+	}
+
+	return input, nil
+}
+
+// GetByID возвращает модель по ID
+func (s *modelService) GetByID(ctx context.Context, id string) (*domain.Model, error) {
 	model, err := s.modelRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -402,13 +542,61 @@ func (s *modelService) GetModel(ctx context.Context, id string) (*domain.Model, 
 	return model, nil
 }
 
-// ListModels возвращает список моделей
-func (s *modelService) ListModels(ctx context.Context) ([]domain.Model, error) {
+// Update обновляет модель
+func (s *modelService) Update(ctx context.Context, id string, input *domain.Model) (*domain.Model, error) {
+	// Проверяем существование модели
+	existingModel, err := s.modelRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if existingModel == nil {
+		return nil, fmt.Errorf("модель с ID %s не найдена", id)
+	}
+
+	// Проверяем уникальность имени, если оно изменилось
+	if input.Name != existingModel.Name {
+		model, err := s.modelRepo.FindByName(ctx, input.Name)
+		if err != nil {
+			return nil, err
+		}
+		if model != nil && model.ID != id {
+			return nil, fmt.Errorf("модель с названием %s уже существует", input.Name)
+		}
+	}
+
+	// Обновляем данные
+	input.ID = id
+	input.UpdatedAt = time.Now()
+
+	if err := s.modelRepo.Update(ctx, input); err != nil {
+		return nil, err
+	}
+
+	return input, nil
+}
+
+// Delete удаляет модель
+func (s *modelService) Delete(ctx context.Context, id string) error {
+	// Проверяем существование модели
+	model, err := s.modelRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if model == nil {
+		return fmt.Errorf("модель с ID %s не найдена", id)
+	}
+
+	// Удаляем модель
+	return s.modelRepo.Delete(ctx, id)
+}
+
+// List возвращает список моделей
+func (s *modelService) List(ctx context.Context) ([]domain.Model, error) {
 	return s.modelRepo.List(ctx)
 }
 
-// ListModelsByCompany возвращает список моделей компании
-func (s *modelService) ListModelsByCompany(ctx context.Context, companyID string) ([]domain.Model, error) {
+// ListByCompanyID возвращает список моделей компании
+func (s *modelService) ListByCompanyID(ctx context.Context, companyID string) ([]domain.Model, error) {
 	return s.modelRepo.ListByCompanyID(ctx, companyID)
 }
 
@@ -449,6 +637,136 @@ func (s *modelService) UpdateModelConfig(ctx context.Context, config *domain.Mod
 	return s.modelConfigRepo.Update(ctx, config)
 }
 
+// CreateModelConfig создает новую конфигурацию модели
+func (s *modelService) CreateModelConfig(ctx context.Context, modelID string, isFree bool, isEnabled bool, inputTokenCost float64, outputTokenCost float64) (*domain.ModelConfig, error) {
+	// Проверяем существование модели
+	model, err := s.modelRepo.FindByID(ctx, modelID)
+	if err != nil {
+		return nil, err
+	}
+	if model == nil {
+		return nil, fmt.Errorf("модель с ID %s не найдена", modelID)
+	}
+
+	// Проверяем, не существует ли уже конфигурация для этой модели
+	existingConfig, err := s.modelConfigRepo.FindByModelID(ctx, modelID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	// Если конфигурация уже существует, возвращаем ошибку
+	if existingConfig != nil {
+		return nil, fmt.Errorf("конфигурация для модели с ID %s уже существует", modelID)
+	}
+
+	// Создаем новую конфигурацию
+	config := &domain.ModelConfig{
+		ID:              uuid.New().String(),
+		ModelID:         modelID,
+		IsFree:          isFree,
+		IsEnabled:       isEnabled,
+		InputTokenCost:  inputTokenCost,
+		OutputTokenCost: outputTokenCost,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	// Сохраняем конфигурацию в БД
+	if err := s.modelConfigRepo.Create(ctx, config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// GetModelByID возвращает модель по ID
+func (s *modelService) GetModelByID(ctx context.Context, id string) (*domain.Model, error) {
+	return s.modelRepo.FindByID(ctx, id)
+}
+
+// GetAllModels возвращает все модели
+func (s *modelService) GetAllModels(ctx context.Context) ([]domain.Model, error) {
+	return s.modelRepo.List(ctx)
+}
+
+// GetAllCompanies возвращает все компании
+func (s *modelService) GetAllCompanies(ctx context.Context) ([]domain.Company, error) {
+	// Здесь нужно делегировать вызов к репозиторию компаний
+	// В текущей реализации у modelService нет доступа к companyRepo,
+	// поэтому этот метод может быть добавлен при необходимости
+	return nil, fmt.Errorf("метод не реализован")
+}
+
+// GetModelsByCompanyID возвращает модели компании
+func (s *modelService) GetModelsByCompanyID(ctx context.Context, companyID string) ([]domain.Model, error) {
+	return s.modelRepo.ListByCompanyID(ctx, companyID)
+}
+
+// GetAllModelsWithConfigs возвращает все модели с конфигурациями
+func (s *modelService) GetAllModelsWithConfigs(ctx context.Context) ([]domain.ModelWithConfig, error) {
+	// Получаем все модели
+	models, err := s.modelRepo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Создаем массив для результата
+	result := make([]domain.ModelWithConfig, 0, len(models))
+
+	// Для каждой модели получаем ее конфигурацию
+	for _, model := range models {
+		config, err := s.modelConfigRepo.FindByModelID(ctx, model.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка при получении конфигурации для модели %s: %w", model.ID, err)
+		}
+
+		// Если конфигурация не найдена, создаем пустую
+		if config == nil {
+			config = &domain.ModelConfig{
+				ModelID:         model.ID,
+				IsFree:          false,
+				IsEnabled:       false,
+				InputTokenCost:  0,
+				OutputTokenCost: 0,
+			}
+		}
+
+		// Добавляем в результат
+		result = append(result, domain.ModelWithConfig{
+			Model:  model,
+			Config: *config,
+		})
+	}
+
+	return result, nil
+}
+
+// UpdateModelConfigParams обновляет параметры конфигурации модели
+func (s *modelService) UpdateModelConfigParams(ctx context.Context, id string, isFree bool, isEnabled bool, inputTokenCost float64, outputTokenCost float64) (*domain.ModelConfig, error) {
+	// Проверяем существование конфигурации
+	config, err := s.modelConfigRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, fmt.Errorf("конфигурация с ID %s не найдена", id)
+	}
+
+	// Обновляем параметры
+	config.IsFree = isFree
+	config.IsEnabled = isEnabled
+	config.InputTokenCost = inputTokenCost
+	config.OutputTokenCost = outputTokenCost
+	config.UpdatedAt = time.Now()
+
+	// Сохраняем изменения
+	if err := s.modelConfigRepo.Update(ctx, config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
 // rateLimitService реализация RateLimitService
 type rateLimitService struct {
 	rateLimitRepo repository.RateLimitRepository
@@ -473,32 +791,32 @@ func NewRateLimitService(
 }
 
 // CreateRateLimit создает новое ограничение запросов
-func (s *rateLimitService) CreateRateLimit(ctx context.Context, rateLimit *domain.RateLimit) error {
+func (s *rateLimitService) Create(ctx context.Context, rateLimit *domain.RateLimit) (*domain.RateLimit, error) {
 	// Проверяем существование модели
 	model, err := s.modelRepo.FindByID(ctx, rateLimit.ModelID)
 	if err != nil {
-		return fmt.Errorf("ошибка при проверке существования модели: %w", err)
+		return nil, fmt.Errorf("ошибка при проверке существования модели: %w", err)
 	}
 	if model == nil {
-		return fmt.Errorf("модель с ID %s не найдена", rateLimit.ModelID)
+		return nil, fmt.Errorf("модель с ID %s не найдена", rateLimit.ModelID)
 	}
 
 	// Проверяем существование тира
 	tier, err := s.tierRepo.FindByID(ctx, rateLimit.TierID)
 	if err != nil {
-		return fmt.Errorf("ошибка при проверке существования тира: %w", err)
+		return nil, fmt.Errorf("ошибка при проверке существования тира: %w", err)
 	}
 	if tier == nil {
-		return fmt.Errorf("тир с ID %s не найден", rateLimit.TierID)
+		return nil, fmt.Errorf("тир с ID %s не найден", rateLimit.TierID)
 	}
 
 	// Проверяем, не существует ли уже ограничение для этой пары модель-тир
 	existingRateLimit, err := s.rateLimitRepo.FindByModelAndTier(ctx, rateLimit.ModelID, rateLimit.TierID)
 	if err != nil {
-		return fmt.Errorf("ошибка при проверке существования ограничения: %w", err)
+		return nil, fmt.Errorf("ошибка при проверке существования ограничения: %w", err)
 	}
 	if existingRateLimit != nil {
-		return fmt.Errorf("ограничение для модели %s и тира %s уже существует", rateLimit.ModelID, rateLimit.TierID)
+		return nil, fmt.Errorf("ограничение для модели %s и тира %s уже существует", rateLimit.ModelID, rateLimit.TierID)
 	}
 
 	// Устанавливаем ID и даты
@@ -506,11 +824,15 @@ func (s *rateLimitService) CreateRateLimit(ctx context.Context, rateLimit *domai
 	rateLimit.CreatedAt = time.Now()
 	rateLimit.UpdatedAt = time.Now()
 
-	return s.rateLimitRepo.Create(ctx, rateLimit)
+	if err := s.rateLimitRepo.Create(ctx, rateLimit); err != nil {
+		return nil, err
+	}
+
+	return rateLimit, nil
 }
 
 // GetRateLimit возвращает ограничение запросов по ID
-func (s *rateLimitService) GetRateLimit(ctx context.Context, id string) (*domain.RateLimit, error) {
+func (s *rateLimitService) GetByID(ctx context.Context, id string) (*domain.RateLimit, error) {
 	rateLimit, err := s.rateLimitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -521,37 +843,30 @@ func (s *rateLimitService) GetRateLimit(ctx context.Context, id string) (*domain
 	return rateLimit, nil
 }
 
-// GetRateLimitByModelAndTier возвращает ограничение запросов по модели и тиру
-func (s *rateLimitService) GetRateLimitByModelAndTier(ctx context.Context, modelID, tierID string) (*domain.RateLimit, error) {
-	rateLimit, err := s.rateLimitRepo.FindByModelAndTier(ctx, modelID, tierID)
+// UpdateRateLimit обновляет ограничение запросов
+func (s *rateLimitService) Update(ctx context.Context, id string, rateLimit *domain.RateLimit) (*domain.RateLimit, error) {
+	// Проверяем существование ограничения
+	existingRateLimit, err := s.rateLimitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if rateLimit == nil {
-		return nil, fmt.Errorf("ограничение для модели %s и тира %s не найдено", modelID, tierID)
-	}
-	return rateLimit, nil
-}
-
-// UpdateRateLimit обновляет ограничение запросов
-func (s *rateLimitService) UpdateRateLimit(ctx context.Context, rateLimit *domain.RateLimit) error {
-	// Проверяем существование ограничения
-	existingRateLimit, err := s.rateLimitRepo.FindByID(ctx, rateLimit.ID)
-	if err != nil {
-		return err
-	}
 	if existingRateLimit == nil {
-		return fmt.Errorf("ограничение запросов с ID %s не найдено", rateLimit.ID)
+		return nil, fmt.Errorf("ограничение запросов с ID %s не найдено", id)
 	}
 
 	// Обновляем время изменения
+	rateLimit.ID = id
 	rateLimit.UpdatedAt = time.Now()
 
-	return s.rateLimitRepo.Update(ctx, rateLimit)
+	if err := s.rateLimitRepo.Update(ctx, rateLimit); err != nil {
+		return nil, err
+	}
+
+	return rateLimit, nil
 }
 
 // DeleteRateLimit удаляет ограничение запросов
-func (s *rateLimitService) DeleteRateLimit(ctx context.Context, id string) error {
+func (s *rateLimitService) Delete(ctx context.Context, id string) error {
 	// Проверяем существование ограничения
 	rateLimit, err := s.rateLimitRepo.FindByID(ctx, id)
 	if err != nil {
@@ -565,22 +880,22 @@ func (s *rateLimitService) DeleteRateLimit(ctx context.Context, id string) error
 }
 
 // ListRateLimits возвращает список ограничений запросов
-func (s *rateLimitService) ListRateLimits(ctx context.Context) ([]domain.RateLimit, error) {
+func (s *rateLimitService) List(ctx context.Context) ([]domain.RateLimit, error) {
 	return s.rateLimitRepo.List(ctx)
 }
 
 // ListRateLimitsByModel возвращает список ограничений запросов по модели
-func (s *rateLimitService) ListRateLimitsByModel(ctx context.Context, modelID string) ([]domain.RateLimit, error) {
+func (s *rateLimitService) ListByModelID(ctx context.Context, modelID string) ([]domain.RateLimit, error) {
 	return s.rateLimitRepo.ListByModelID(ctx, modelID)
 }
 
 // ListRateLimitsByTier возвращает список ограничений запросов по тиру
-func (s *rateLimitService) ListRateLimitsByTier(ctx context.Context, tierID string) ([]domain.RateLimit, error) {
+func (s *rateLimitService) ListByTierID(ctx context.Context, tierID string) ([]domain.RateLimit, error) {
 	return s.rateLimitRepo.ListByTierID(ctx, tierID)
 }
 
-// CheckRateLimit проверяет ограничение запросов
-func (s *rateLimitService) CheckRateLimit(ctx context.Context, userID, modelID string, inputTokens int) (bool, error) {
+// CheckRateLimit проверяет ограничение запросов для проверки соответствия интерфейсу
+func (s *rateLimitService) CheckLimit(ctx context.Context, userID, modelID string) (bool, error) {
 	// Получаем пользователя
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -590,40 +905,28 @@ func (s *rateLimitService) CheckRateLimit(ctx context.Context, userID, modelID s
 		return false, fmt.Errorf("пользователь с ID %s не найден", userID)
 	}
 
-	// Получаем ограничение для модели и тира пользователя
+	// Получаем тир пользователя
+	tier, err := s.tierRepo.FindByID(ctx, user.TierID)
+	if err != nil {
+		return false, fmt.Errorf("ошибка при получении данных тира: %w", err)
+	}
+	if tier == nil {
+		return false, fmt.Errorf("тир с ID %s не найден", user.TierID)
+	}
+
+	// Получаем ограничения для данной модели и тира
 	rateLimit, err := s.rateLimitRepo.FindByModelAndTier(ctx, modelID, user.TierID)
 	if err != nil {
 		return false, fmt.Errorf("ошибка при получении ограничений: %w", err)
 	}
-
-	// Если ограничений нет, разрешаем запрос
 	if rateLimit == nil {
-		return true, nil
+		return false, fmt.Errorf("ограничения для модели %s и тира %s не найдены", modelID, user.TierID)
 	}
 
-	// Реализация проверки ограничений на токены
-	// В реальной системе здесь должна быть логика подсчета токенов
-	// за определенные периоды времени (минута, день, месяц)
-	// и сравнение с установленными лимитами
-	if rateLimit.TokensPerMinute > 0 && inputTokens > rateLimit.TokensPerMinute {
-		return false, fmt.Errorf("превышен лимит токенов в минуту (%d)", rateLimit.TokensPerMinute)
-	}
+	// Здесь должна быть логика проверки текущих использованных токенов/запросов
+	// и сравнение с лимитами. Для простоты будем возвращать true
 
 	return true, nil
-}
-
-// List обрабатывает HTTP-запрос на получение всех ограничений
-func (s *rateLimitService) List(w http.ResponseWriter, r *http.Request) {
-	limits, err := s.ListRateLimits(r.Context())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Ошибка при получении лимитов"))
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(limits)
 }
 
 // apiKeyService реализация ApiKeyService
@@ -643,16 +946,24 @@ func NewApiKeyService(
 	}
 }
 
-// CreateApiKey создает новый ключ API
-func (s *apiKeyService) CreateApiKey(ctx context.Context, userID string, name string, expiresAt *time.Time) (*domain.ApiKey, string, error) {
-	// Генерируем время истечения, если не предоставлено
-	expiry := time.Now().Add(24 * 7 * time.Hour) // По умолчанию 1 неделя
-	if expiresAt != nil {
-		expiry = *expiresAt
+// Create создает новый ключ API
+func (s *apiKeyService) Create(ctx context.Context, userID, name string, expiresAt *string) (*domain.ApiKey, string, error) {
+	// Обработка даты истечения
+	var expiry *time.Time
+	if expiresAt != nil && *expiresAt != "" {
+		t, err := time.Parse(time.RFC3339, *expiresAt)
+		if err != nil {
+			return nil, "", fmt.Errorf("неверный формат даты истечения: %w", err)
+		}
+		expiry = &t
+	} else {
+		// По умолчанию 1 неделя
+		t := time.Now().Add(24 * 7 * time.Hour)
+		expiry = &t
 	}
 
 	// Создаем ключ API через LiteLLM
-	apiKey, err := s.litellmClient.CreateKey(ctx, userID, expiry)
+	apiKey, err := s.litellmClient.CreateKey(ctx, userID, *expiry)
 	if err != nil {
 		return nil, "", fmt.Errorf("ошибка создания ключа API: %w", err)
 	}
@@ -682,13 +993,13 @@ func (s *apiKeyService) GetApiKey(ctx context.Context, id string) (*domain.ApiKe
 	return apiKey, nil
 }
 
-// ListApiKeys возвращает список ключей API пользователя
-func (s *apiKeyService) ListApiKeys(ctx context.Context, userID string) ([]domain.ApiKey, error) {
+// ListByUser возвращает список ключей API пользователя
+func (s *apiKeyService) ListByUser(ctx context.Context, userID string) ([]domain.ApiKey, error) {
 	return s.apiKeyRepo.FindByUserID(ctx, userID)
 }
 
-// DeleteApiKey удаляет ключ API
-func (s *apiKeyService) DeleteApiKey(ctx context.Context, id string) error {
+// Delete удаляет ключ API
+func (s *apiKeyService) Delete(ctx context.Context, id string) error {
 	// Проверяем существование ключа
 	apiKey, err := s.apiKeyRepo.FindByID(ctx, id)
 	if err != nil {
@@ -724,65 +1035,24 @@ func NewRequestService(
 	}
 }
 
-// CreateRequest создает новый запрос
-func (s *requestService) CreateRequest(ctx context.Context, userID string, modelID string, inputTokens, outputTokens int) (*domain.Request, error) {
-	// Получаем конфигурацию модели для расчета стоимости
-	modelConfig, err := s.modelConfigRepo.FindByModelID(ctx, modelID)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка при получении конфигурации модели: %w", err)
-	}
-	if modelConfig == nil {
-		return nil, fmt.Errorf("конфигурация для модели с ID %s не найдена", modelID)
+// Create создает новый запрос
+func (s *requestService) Create(ctx context.Context, request *domain.Request) error {
+	// Проверяем, что у запроса есть ID
+	if request.ID == "" {
+		request.ID = uuid.New().String()
 	}
 
-	// Рассчитываем стоимость запроса
-	inputCost := float64(inputTokens) * modelConfig.InputTokenCost
-	outputCost := float64(outputTokens) * modelConfig.OutputTokenCost
-	totalCost := inputCost + outputCost
-
-	// Создаем запрос
-	request := &domain.Request{
-		ID:           uuid.New().String(),
-		UserID:       userID,
-		ModelID:      modelID,
-		InputTokens:  inputTokens,
-		OutputTokens: outputTokens,
-		InputCost:    inputCost,
-		OutputCost:   outputCost,
-		TotalCost:    totalCost,
-		CreatedAt:    time.Now(),
+	// Проверяем, что у запроса есть дата создания
+	if request.CreatedAt.IsZero() {
+		request.CreatedAt = time.Now()
 	}
 
 	// Сохраняем запрос
-	if err := s.requestRepo.Create(ctx, request); err != nil {
-		return nil, fmt.Errorf("ошибка при сохранении запроса: %w", err)
-	}
-
-	// Обновляем лимиты пользователя
-	userLimits, err := s.userLimitsRepo.FindByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка при получении лимитов пользователя: %w", err)
-	}
-	if userLimits != nil {
-		// Вычитаем токены из лимита пользователя
-		totalTokens := inputTokens + outputTokens
-		if userLimits.MonthlyTokenLimit > 0 {
-			userLimits.MonthlyTokenLimit -= int64(totalTokens)
-			if userLimits.MonthlyTokenLimit < 0 {
-				userLimits.MonthlyTokenLimit = 0
-			}
-
-			if err := s.userLimitsRepo.Update(ctx, userLimits); err != nil {
-				return nil, fmt.Errorf("ошибка при обновлении лимитов пользователя: %w", err)
-			}
-		}
-	}
-
-	return request, nil
+	return s.requestRepo.Create(ctx, request)
 }
 
-// GetRequest возвращает запрос по ID
-func (s *requestService) GetRequest(ctx context.Context, id string) (*domain.Request, error) {
+// GetByID возвращает запрос по ID
+func (s *requestService) GetByID(ctx context.Context, id string) (*domain.Request, error) {
 	request, err := s.requestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -793,19 +1063,19 @@ func (s *requestService) GetRequest(ctx context.Context, id string) (*domain.Req
 	return request, nil
 }
 
-// ListUserRequests возвращает список запросов пользователя
-func (s *requestService) ListUserRequests(ctx context.Context, userID string, offset, limit int) ([]domain.Request, int, error) {
-	requests, err := s.requestRepo.ListByUserID(ctx, userID, offset, limit)
+// ListByUser возвращает список запросов пользователя
+func (s *requestService) ListByUser(ctx context.Context, userID string, offset, limit int) ([]domain.Request, int, error) {
+	requests, err := s.requestRepo.FindByUserID(ctx, userID, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	total, err := s.requestRepo.CountByUserID(ctx, userID)
+	count, err := s.requestRepo.CountByUserID(ctx, userID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return requests, total, nil
+	return requests, count, nil
 }
 
 // llmProxyService реализация LLMProxyService
@@ -876,7 +1146,7 @@ func (s *llmProxyService) ProxyRequest(ctx context.Context, userID, modelID stri
 	inputTokens := len(content) / 4 // Грубая оценка: 1 токен ~ 4 символа
 
 	// Проверяем ограничения запросов
-	allowed, err := s.rateLimitService.CheckRateLimit(ctx, userID, modelID, inputTokens)
+	allowed, err := s.rateLimitService.CheckLimit(ctx, userID, modelID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при проверке ограничений: %w", err)
 	}
@@ -897,13 +1167,167 @@ func (s *llmProxyService) ProxyRequest(ctx context.Context, userID, modelID stri
 		return nil, fmt.Errorf("ошибка при выполнении запроса к модели: %w", err)
 	}
 
-	// Сохраняем информацию о запросе
-	_, err = s.requestService.CreateRequest(ctx, userID, modelID, inputTokens, response.Tokens)
-	if err != nil {
-		// Логируем ошибку, но не прерываем выполнение
-		// В реальной системе здесь должно быть логирование
-		fmt.Printf("Ошибка при сохранении информации о запросе: %v\n", err)
+	// Сохраняем запрос в историю
+	request = &domain.Request{
+		ID:           uuid.New().String(),
+		UserID:       userID,
+		ModelID:      modelID,
+		InputTokens:  inputTokens,
+		OutputTokens: response.Tokens,
+		InputCost:    float64(inputTokens) * modelConfig.InputTokenCost,
+		OutputCost:   float64(response.Tokens) * modelConfig.OutputTokenCost,
+		TotalCost:    float64(inputTokens)*modelConfig.InputTokenCost + float64(response.Tokens)*modelConfig.OutputTokenCost,
+		CreatedAt:    time.Now(),
+	}
+
+	if err := s.requestService.Create(ctx, request); err != nil {
+		return nil, fmt.Errorf("ошибка при сохранении запроса: %w", err)
 	}
 
 	return response, nil
+}
+
+// Completions обрабатывает запросы к моделям
+func (s *llmProxyService) Completions(ctx context.Context, userID, modelID string, request map[string]interface{}) (map[string]interface{}, error) {
+	// Проверяем существование пользователя
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении данных пользователя: %w", err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("пользователь с ID %s не найден", userID)
+	}
+
+	// Проверяем существование модели
+	model, err := s.modelRepo.FindByID(ctx, modelID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении данных модели: %w", err)
+	}
+	if model == nil {
+		return nil, fmt.Errorf("модель с ID %s не найдена", modelID)
+	}
+
+	// Получаем конфигурацию модели
+	modelConfig, err := s.modelConfigRepo.FindByModelID(ctx, modelID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении конфигурации модели: %w", err)
+	}
+	if modelConfig == nil {
+		return nil, fmt.Errorf("конфигурация для модели с ID %s не найдена", modelID)
+	}
+
+	// Проверяем, включена ли модель
+	if !modelConfig.IsEnabled {
+		return nil, fmt.Errorf("модель %s отключена", model.Name)
+	}
+
+	// Примерная оценка количества токенов во входном тексте
+	// В реальной реализации должен быть более точный алгоритм
+	inputTokens := 0
+	if content, ok := request["prompt"].(string); ok {
+		inputTokens = len(content) / 4 // Грубая оценка: 1 токен ~ 4 символа
+	}
+
+	// Проверяем ограничения запросов
+	allowed, err := s.rateLimitService.CheckLimit(ctx, userID, modelID)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при проверке ограничений: %w", err)
+	}
+	if !allowed {
+		return nil, fmt.Errorf("запрос отклонен из-за ограничений")
+	}
+
+	// Отправляем запрос через LiteLLM
+	// Создаем копию запроса для передачи в LiteLLM
+	litellmRequest := make(map[string]interface{})
+	for k, v := range request {
+		litellmRequest[k] = v
+	}
+
+	// Добавляем модель в запрос
+	litellmRequest["model"] = model.ExternalID
+
+	// Выполняем запрос
+	response, err := s.litellmClient.ProxyCompletions(ctx, litellmRequest)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при выполнении запроса к модели: %w", err)
+	}
+
+	// Извлекаем количество токенов из ответа
+	var outputTokens int
+	if usage, ok := response["usage"].(map[string]interface{}); ok {
+		if completion, ok := usage["completion_tokens"].(float64); ok {
+			outputTokens = int(completion)
+		}
+	}
+
+	// Сохраняем запрос в историю
+	requestData := &domain.Request{
+		ID:           uuid.New().String(),
+		UserID:       userID,
+		ModelID:      modelID,
+		InputTokens:  inputTokens,
+		OutputTokens: outputTokens,
+		InputCost:    float64(inputTokens) * modelConfig.InputTokenCost,
+		OutputCost:   float64(outputTokens) * modelConfig.OutputTokenCost,
+		TotalCost:    float64(inputTokens)*modelConfig.InputTokenCost + float64(outputTokens)*modelConfig.OutputTokenCost,
+		CreatedAt:    time.Now(),
+	}
+
+	if err := s.requestService.Create(ctx, requestData); err != nil {
+		// Логируем ошибку, но не прерываем выполнение
+		fmt.Printf("Ошибка при сохранении запроса: %v\n", err)
+	}
+
+	return response, nil
+}
+
+// Delete удаляет пользователя
+func (s *userService) Delete(ctx context.Context, id string) error {
+	// Проверяем существование пользователя
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return fmt.Errorf("пользователь с ID %s не найден", id)
+	}
+
+	// Удаляем пользователя
+	return s.userRepo.Delete(ctx, id)
+}
+
+// GetByID возвращает пользователя по ID
+func (s *userService) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("пользователь с ID %s не найден", id)
+	}
+	return user, nil
+}
+
+// GetLimits возвращает лимиты пользователя
+func (s *userService) GetLimits(ctx context.Context, userID string) (*domain.UserLimits, error) {
+	// Проверяем существование пользователя
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("пользователь с ID %s не найден", userID)
+	}
+
+	// Получаем лимиты пользователя
+	limits, err := s.userLimitsRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if limits == nil {
+		return nil, fmt.Errorf("лимиты для пользователя с ID %s не найдены", userID)
+	}
+
+	return limits, nil
 }

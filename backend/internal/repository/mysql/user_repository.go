@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type userRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-// NewUserRepository создает новый репозиторий пользователей
-func NewUserRepository(db *sql.DB) *userRepository {
+// NewMysqlUserRepository создает новый репозиторий пользователей
+func NewMysqlUserRepository(db *sqlx.DB) *userRepository {
 	return &userRepository{
 		db: db,
 	}
@@ -59,14 +60,7 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*domain.User,
 	`
 
 	var user domain.User
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&user.ID,
-		&user.Email,
-		&user.PasswordHash,
-		&user.TierID,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
+	err := r.db.QueryRowxContext(ctx, query, id).StructScan(&user)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -87,14 +81,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 	`
 
 	var user domain.User
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&user.ID,
-		&user.Email,
-		&user.PasswordHash,
-		&user.TierID,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
+	err := r.db.QueryRowxContext(ctx, query, email).StructScan(&user)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -145,7 +132,7 @@ func (r *userRepository) List(ctx context.Context, offset, limit int) ([]domain.
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryxContext(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -154,14 +141,7 @@ func (r *userRepository) List(ctx context.Context, offset, limit int) ([]domain.
 	var users []domain.User
 	for rows.Next() {
 		var user domain.User
-		if err := rows.Scan(
-			&user.ID,
-			&user.Email,
-			&user.PasswordHash,
-			&user.TierID,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		); err != nil {
+		if err := rows.StructScan(&user); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -179,7 +159,7 @@ func (r *userRepository) Count(ctx context.Context) (int, error) {
 	query := `SELECT COUNT(*) FROM users`
 
 	var count int
-	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	err := r.db.QueryRowxContext(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, err
 	}

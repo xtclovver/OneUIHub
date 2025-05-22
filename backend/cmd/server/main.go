@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/api"
 	"github.com/oneaihub/backend/internal/config"
 	"github.com/oneaihub/backend/internal/litellm"
@@ -33,7 +33,7 @@ func main() {
 
 	// Подключение к базе данных
 	dsn := cfg.Database.GetDSN()
-	db, err := sql.Open("mysql", dsn)
+	db, err := sqlx.Connect("mysql", dsn)
 	if err != nil {
 		logger.Fatalf("Ошибка подключения к базе данных: %v", err)
 	}
@@ -42,6 +42,11 @@ func main() {
 			logger.Printf("Ошибка закрытия соединения с базой данных: %v", err)
 		}
 	}()
+
+	// Настройка базы данных
+	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
 
 	// Проверка соединения с базой данных
 	if err := db.Ping(); err != nil {
@@ -130,7 +135,7 @@ func main() {
 		r.Get("/api/models", modelHandler.List)
 		r.Get("/api/models/{id}", modelHandler.Get)
 		r.Get("/api/tiers", tierHandler.List)
-		r.Get("/api/rate-limits", rateLimitService.List)
+		r.Get("/api/rate-limits", adminHandler.ListRateLimits)
 
 		// Аутентификация
 		r.Post("/api/auth/register", authHandler.Register)

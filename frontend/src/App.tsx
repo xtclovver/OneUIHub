@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from './redux/store';
-import { getProfile } from './redux/slices/authSlice';
+import { fetchCurrentUser } from './redux/slices/authSlice';
 
 // Layouts
 import MainLayout from './components/common/MainLayout';
@@ -21,13 +21,13 @@ import NotFoundPage from './pages/NotFound';
 
 const App = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, token } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    if (token) {
-      dispatch(getProfile());
+    if (isAuthenticated) {
+      dispatch(fetchCurrentUser());
     }
-  }, [dispatch, token]);
+  }, [dispatch, isAuthenticated]);
 
   return (
     <Router>

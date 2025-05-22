@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type tierRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-// NewTierRepository создает новый репозиторий тиров
-func NewTierRepository(db *sql.DB) *tierRepository {
+// NewMysqlTierRepository создает новый репозиторий тиров
+func NewMysqlTierRepository(db *sqlx.DB) *tierRepository {
 	return &tierRepository{
 		db: db,
 	}

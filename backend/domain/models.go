@@ -14,15 +14,15 @@ const (
 )
 
 // User - данные пользователя
-// type User struct {
-// 	ID           string    `json:"id" db:"id"`
-// 	Email        string    `json:"email" db:"email"`
-// 	PasswordHash string    `json:"-" db:"password_hash"`
-// 	TierID       string    `json:"tier_id" db:"tier_id"`
-// 	Role         UserRole  `json:"role" db:"role"`
-// 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-// 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
-// }
+type User struct {
+	ID           string    `json:"id" db:"id"`
+	Email        string    `json:"email" db:"email"`
+	PasswordHash string    `json:"-" db:"password_hash"`
+	TierID       string    `json:"tier_id" db:"tier_id"`
+	Role         UserRole  `json:"role" db:"role"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
 
 // Tier - тир подписки с разными лимитами
 type Tier struct {
@@ -67,12 +67,6 @@ type ModelConfig struct {
 	OutputTokenCost float64   `json:"output_token_cost" db:"output_token_cost"`
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-}
-
-// ModelWithConfig - модель с присоединенными настройками
-type ModelWithConfig struct {
-	Model  Model       `json:"model"`
-	Config ModelConfig `json:"config"`
 }
 
 // RateLimit - ограничения запросов для каждой модели по тирам

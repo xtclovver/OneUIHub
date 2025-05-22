@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/oneaihub/backend/internal/domain"
 )
 
 type modelRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 // NewModelRepository создает новый репозиторий моделей
-func NewModelRepository(db *sql.DB) *modelRepository {
+func NewModelRepository(db *sqlx.DB) *modelRepository {
 	return &modelRepository{
 		db: db,
 	}
@@ -221,4 +222,34 @@ func (r *modelRepository) ListByCompanyID(ctx context.Context, companyID string)
 	}
 
 	return models, nil
+}
+
+// FindByName находит модель по имени
+func (r *modelRepository) FindByName(ctx context.Context, name string) (*domain.Model, error) {
+	query := `
+		SELECT id, company_id, name, description, features, external_id, created_at, updated_at
+		FROM models
+		WHERE name = ?
+	`
+
+	var model domain.Model
+	err := r.db.QueryRowContext(ctx, query, name).Scan(
+		&model.ID,
+		&model.CompanyID,
+		&model.Name,
+		&model.Description,
+		&model.Features,
+		&model.ExternalID,
+		&model.CreatedAt,
+		&model.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Возвращаем nil, nil если модель не найдена
+		}
+		return nil, err
+	}
+
+	return &model, nil
 }
