@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api, { mockApi } from '../../api';
 
 export interface Company {
   id: string;
@@ -26,10 +26,12 @@ export const fetchCompanies = createAsyncThunk(
   'companies/fetchCompanies',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/companies');
+      // Используем мок данные для разработки
+      // const response = await api.get('/companies');
+      const response = await mockApi.getCompanies();
       return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
+    } catch (error: any) {
+      if (error.response) {
         return rejectWithValue(error.response.data.message || 'Ошибка получения компаний');
       }
       return rejectWithValue('Ошибка сервера');
@@ -41,10 +43,12 @@ export const fetchCompanyById = createAsyncThunk(
   'companies/fetchCompanyById',
   async (companyId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/companies/${companyId}`);
+      // Используем мок данные для разработки
+      // const response = await api.get(`/companies/${companyId}`);
+      const response = await mockApi.getCompanyById(companyId);
       return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
+    } catch (error: any) {
+      if (error.response) {
         return rejectWithValue(error.response.data.message || 'Ошибка получения компании');
       }
       return rejectWithValue('Ошибка сервера');

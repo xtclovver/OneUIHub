@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -237,8 +238,54 @@ func NewCompanyHandler(companyService service.CompanyService) *CompanyHandlerStr
 
 // List возвращает список компаний
 func (h *CompanyHandlerStruct) List(w http.ResponseWriter, r *http.Request) {
-	// TODO: Реализовать
-	w.WriteHeader(http.StatusNotImplemented)
+	// Временные данные о компаниях для отображения на главной странице
+	companies := []struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		LogoURL     string `json:"logoURL"`
+		Description string `json:"description"`
+	}{
+		{
+			ID:          "1",
+			Name:        "Anthropic",
+			LogoURL:     "",
+			Description: "Создатели Claude - современного ИИ-ассистента с акцентом на безопасность и надежность.",
+		},
+		{
+			ID:          "2",
+			Name:        "OpenAI",
+			LogoURL:     "",
+			Description: "Разработчики GPT-4, DALL-E 3 и других передовых ИИ-моделей.",
+		},
+		{
+			ID:          "3",
+			Name:        "Google",
+			LogoURL:     "",
+			Description: "Семейство моделей Gemini для различных задач ИИ.",
+		},
+		{
+			ID:          "4",
+			Name:        "Microsoft",
+			LogoURL:     "",
+			Description: "Платформа Azure OpenAI и другие ИИ-решения для бизнеса.",
+		},
+		{
+			ID:          "5",
+			Name:        "Meta",
+			LogoURL:     "",
+			Description: "Создатели семейства моделей Llama с открытым исходным кодом.",
+		},
+		{
+			ID:          "6",
+			Name:        "DeepSeek",
+			LogoURL:     "",
+			Description: "Инновационные модели для кодирования и генерации контента.",
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(companies)
 }
 
 // ModelHandler обработчик для работы с моделями
