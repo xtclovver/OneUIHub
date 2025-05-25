@@ -76,7 +76,7 @@ const CompanyDetailPage: React.FC = () => {
         <div className="content-wrapper">
           <div className="text-center py-12">
             <BuildingOfficeIcon className="w-16 h-16 text-ai-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Компания не найдена
             </h3>
             <p className="text-ai-gray-400 mb-6">
@@ -103,7 +103,7 @@ const CompanyDetailPage: React.FC = () => {
         >
           <Link
             to="/companies"
-            className="inline-flex items-center text-ai-gray-400 hover:text-white transition-colors duration-300"
+            className="inline-flex items-center text-ai-gray-400 hover:text-gray-900 transition-colors duration-300"
           >
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Назад к компаниям
@@ -130,7 +130,7 @@ const CompanyDetailPage: React.FC = () => {
               )}
             </div>
             <div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
                 {selectedCompany.name}
               </h1>
               <div className="flex items-center space-x-4 text-ai-gray-400">
@@ -187,7 +187,7 @@ const CompanyDetailPage: React.FC = () => {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
                     Тип
                   </label>
                   <select
@@ -202,7 +202,7 @@ const CompanyDetailPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
                     Статус
                   </label>
                   <select
@@ -260,7 +260,7 @@ const CompanyDetailPage: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <CpuChipIcon className="w-16 h-16 text-ai-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {searchTerm || Object.keys(filters).length > 0 ? 'Модели не найдены' : 'Нет доступных моделей'}
             </h3>
             <p className="text-ai-gray-400">

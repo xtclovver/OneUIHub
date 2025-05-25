@@ -58,7 +58,7 @@ const CompaniesPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+                      <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             AI <span className="gradient-text">Компании</span>
           </h1>
           <p className="text-xl text-ai-gray-300 max-w-3xl mx-auto">
@@ -118,7 +118,7 @@ const CompaniesPage: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <BuildingOfficeIcon className="w-16 h-16 text-ai-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Компании не найдены
             </h3>
             <p className="text-ai-gray-400">

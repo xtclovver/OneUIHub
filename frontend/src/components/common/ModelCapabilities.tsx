@@ -105,7 +105,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
       {/* Провайдеры */}
       {providers.length > 0 && (
         <motion.div variants={itemVariants}>
-          <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
             <CpuChipIcon className="w-5 h-5 mr-2 text-ai-orange" />
             Провайдеры
           </h3>
@@ -124,14 +124,14 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
 
       {/* Технические характеристики */}
       <motion.div variants={itemVariants}>
-        <h3 className="text-lg font-semibold text-white mb-3">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">
           Технические характеристики
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {model.max_input_tokens && (
             <div className="glass-card p-4">
               <div className="text-sm text-ai-gray-400 mb-1">Максимум входных токенов</div>
-              <div className="text-lg font-semibold text-white">
+              <div className="text-lg font-semibold text-gray-900">
                 {model.max_input_tokens.toLocaleString()}
               </div>
             </div>
@@ -139,7 +139,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
           {model.max_output_tokens && (
             <div className="glass-card p-4">
               <div className="text-sm text-ai-gray-400 mb-1">Максимум выходных токенов</div>
-              <div className="text-lg font-semibold text-white">
+              <div className="text-lg font-semibold text-gray-900">
                 {model.max_output_tokens.toLocaleString()}
               </div>
             </div>
@@ -147,7 +147,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
           {model.mode && (
             <div className="glass-card p-4">
               <div className="text-sm text-ai-gray-400 mb-1">Режим</div>
-              <div className="text-lg font-semibold text-white capitalize">
+              <div className="text-lg font-semibold text-gray-900 capitalize">
                 {model.mode}
               </div>
             </div>
@@ -157,7 +157,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
 
       {/* Возможности */}
       <motion.div variants={itemVariants}>
-        <h3 className="text-lg font-semibold text-white mb-3">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">
           Возможности модели
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -185,7 +185,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h4 className="text-sm font-medium text-white">
+                      <h4 className="text-sm font-medium text-gray-900">
                         {capability.label}
                       </h4>
                       {supported ? (
@@ -208,7 +208,7 @@ const ModelCapabilities: React.FC<ModelCapabilitiesProps> = ({ model }) => {
       {/* Поддерживаемые параметры OpenAI */}
       {model.supported_openai_params && (
         <motion.div variants={itemVariants}>
-          <h3 className="text-lg font-semibold text-white mb-3">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
             Поддерживаемые параметры OpenAI API
           </h3>
           <div className="glass-card p-4">

@@ -124,7 +124,7 @@ const ModelDetailPage: React.FC = () => {
         <div className="content-wrapper">
           <div className="text-center py-12">
             <CpuChipIcon className="w-16 h-16 text-ai-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Модель не найдена
             </h3>
             <p className="text-ai-gray-400 mb-6">
@@ -151,7 +151,7 @@ const ModelDetailPage: React.FC = () => {
         >
           <Link
             to="/models"
-            className="inline-flex items-center text-ai-gray-400 hover:text-white transition-colors duration-300"
+            className="inline-flex items-center text-ai-gray-400 hover:text-gray-900 transition-colors duration-300"
           >
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Назад к моделям
@@ -171,7 +171,7 @@ const ModelDetailPage: React.FC = () => {
                 {getModelIcon(selectedModel.name)}
               </div>
               <div>
-                <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
                   {selectedModel.name}
                 </h1>
                 <Link
@@ -195,7 +195,7 @@ const ModelDetailPage: React.FC = () => {
           {/* Особенности */}
           {selectedModel.features && (
             <div className="mb-6">
-              <h3 className="text-white font-semibold mb-3">Особенности:</h3>
+              <h3 className="text-gray-900 font-semibold mb-3">Особенности:</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedModel.features.split(',').map((feature, idx) => (
                   <span
@@ -214,14 +214,14 @@ const ModelDetailPage: React.FC = () => {
           {selectedModel.config && !selectedModel.config.is_free && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="glass-card p-4">
-                <h4 className="text-white font-medium mb-2">Входящие токены</h4>
+                <h4 className="text-gray-900 font-medium mb-2">Входящие токены</h4>
                 <p className="text-2xl font-bold text-ai-orange">
                   ${selectedModel.config.input_token_cost?.toFixed(6) || '0.000000'}
                 </p>
                 <p className="text-ai-gray-400 text-sm">за 1,000 токенов</p>
               </div>
               <div className="glass-card p-4">
-                <h4 className="text-white font-medium mb-2">Исходящие токены</h4>
+                <h4 className="text-gray-900 font-medium mb-2">Исходящие токены</h4>
                 <p className="text-2xl font-bold text-ai-purple">
                   ${selectedModel.config.output_token_cost?.toFixed(6) || '0.000000'}
                 </p>
@@ -240,7 +240,7 @@ const ModelDetailPage: React.FC = () => {
         >
           <div className="flex items-center mb-6">
             <SparklesIcon className="w-6 h-6 text-ai-orange mr-2" />
-            <h2 className="text-2xl font-bold text-white">Возможности и характеристики</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Возможности и характеристики</h2>
           </div>
           <ModelCapabilities model={selectedModel} />
         </motion.div>
@@ -254,7 +254,7 @@ const ModelDetailPage: React.FC = () => {
         >
           <div className="flex items-center mb-6">
             <InformationCircleIcon className="w-6 h-6 text-ai-orange mr-2" />
-            <h2 className="text-2xl font-bold text-white">Лимиты по тарифным планам</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Лимиты по тарифным планам</h2>
           </div>
 
           <div className="overflow-x-auto">
@@ -280,7 +280,7 @@ const ModelDetailPage: React.FC = () => {
                   >
                     <td className="table-cell">
                       <span className={`font-medium ${
-                        limit.tier === 'Pro' ? 'text-ai-orange' : 'text-white'
+                        limit.tier === 'Pro' ? 'text-ai-orange' : 'text-gray-900'
                       }`}>
                         {limit.tier}
                       </span>
@@ -299,7 +299,7 @@ const ModelDetailPage: React.FC = () => {
                         limit.price === 0 ? (
                           <span className="text-green-400 font-medium">Бесплатно</span>
                         ) : (
-                          <span className="text-white font-medium">${limit.price}/мес</span>
+                          <span className="text-gray-900 font-medium">${limit.price}/мес</span>
                         )
                       ) : (
                         <span className="text-ai-orange font-medium">{limit.price}</span>

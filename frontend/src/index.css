@@ -150,4 +150,49 @@
     background-color: rgba(255, 255, 255, 0.85);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
+
+  /* AI Theme Colors - Исправление белого текста */
+  .text-ai-gray-300 {
+    @apply text-gray-700;
+  }
+
+  .text-ai-gray-400 {
+    @apply text-gray-600;
+  }
+
+  .text-ai-gray-600 {
+    @apply text-gray-500;
+  }
+
+  .text-ai-orange {
+    @apply text-orange-600;
+  }
+
+  .text-ai-purple {
+    @apply text-purple-600;
+  }
+
+  .text-ai-blue {
+    @apply text-blue-600;
+  }
+
+  .bg-ai-gray-700 {
+    @apply bg-gray-200;
+  }
+
+  .bg-ai-gray-800 {
+    @apply bg-gray-100;
+  }
+
+  .bg-ai-orange {
+    @apply bg-orange-500;
+  }
+
+  .border-ai-gray-700 {
+    @apply border-gray-300;
+  }
+
+  .bg-gradient-ai {
+    @apply bg-gradient-to-r from-orange-500 to-purple-600;
+  }
 }
