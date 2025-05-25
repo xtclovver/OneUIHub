@@ -1,62 +1,54 @@
-import { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from './redux/store';
-import { fetchCurrentUser } from './redux/slices/authSlice';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from './redux/store';
+import { useAppDispatch, useAppSelector } from './hooks/redux';
+import { getProfile } from './redux/slices/authSlice';
 
-// Layouts
-import MainLayout from './components/common/MainLayout';
-import AuthLayout from './components/common/AuthLayout';
+import Layout from './components/common/Layout';
+import HomePage from './pages/Home/HomePage';
+import CompaniesPage from './pages/Company/CompaniesPage';
+import ModelsPage from './pages/Models/ModelsPage';
 
-// Pages
-import HomePage from './pages/Home';
-import CompanyPage from './pages/Company';
-import ModelsPage from './pages/Models';
-import ModelDetailPage from './pages/Models/ModelDetail';
-import ProfilePage from './pages/Profile';
-import RequestsPage from './pages/Requests';
-import LoginPage from './pages/Login';
-import RegisterPage from './pages/Register';
-import NotFoundPage from './pages/NotFound';
+// Импорт страниц авторизации
+import LoginPage from './pages/Auth/LoginPage';
+import RegisterPage from './pages/Auth/RegisterPage';
+import CompanyDetailPage from './pages/Company/CompanyDetailPage';
+import ModelDetailPage from './pages/Models/ModelDetailPage';
 
-const App = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+const AppContent: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { token } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchCurrentUser());
+    if (token) {
+      dispatch(getProfile());
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, token]);
 
   return (
     <Router>
       <Routes>
-        {/* Публичные маршруты */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/companies/:id" element={<CompanyPage />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:id" element={<CompanyDetailPage />} />
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/models/:id" element={<ModelDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
-
-        {/* Аутентификация */}
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/profile" />} />
-          <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/profile" />} />
-        </Route>
-
-        {/* Защищенные маршруты */}
-        <Route element={<MainLayout requireAuth />}>
-          <Route path="/profile" element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} />
-          <Route path="/requests" element={isAuthenticated ? <RequestsPage /> : <Navigate to="/login" />} />
-        </Route>
-
-        {/* 404 */}
-        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
   );
 };
 
-export default App; 
+const App: React.FC = () => {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
+  );
+};
+
+export default App;

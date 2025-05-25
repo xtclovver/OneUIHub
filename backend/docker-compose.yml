@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # База данных MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: oneui-hub-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: oneui_hub
+      MYSQL_USER: oneui_user
+      MYSQL_PASSWORD: oneui_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init_data.sql:/docker-entrypoint-initdb.d/init_data.sql
+    networks:
+      - oneui-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis для кэширования (опционально)
+  redis:
+    image: redis:7-alpine
+    container_name: oneui-hub-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - oneui-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+
+  # Бэкенд приложение
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oneui-hub-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=oneui_user
+      - DB_PASSWORD=oneui_password
+      - DB_NAME=oneui_hub
+      - JWT_SECRET=your-super-secret-jwt-key-for-development
+      - TOKEN_DURATION=24h
+      - LITELLM_BASE_URL=http://litellm:4000
+      - LITELLM_API_KEY=your-litellm-api-key
+      - LITELLM_TIMEOUT=30s
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - oneui-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      timeout: 10s
+      retries: 5
+
+  # LiteLLM прокси (опционально)
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: oneui-hub-litellm
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - LITELLM_MASTER_KEY=your-litellm-master-key
+      - DATABASE_URL=postgresql://litellm_user:litellm_password@postgres:5432/litellm
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+    networks:
+      - oneui-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL для LiteLLM (опционально)
+  postgres:
+    image: postgres:15-alpine
+    container_name: oneui-hub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm_user
+      POSTGRES_PASSWORD: litellm_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - oneui-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm_user -d litellm"]
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  oneui-network:
+    driver: bridge 
