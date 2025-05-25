@@ -323,7 +323,7 @@ INSERT INTO companies (id, name, logo_url, description, external_id, created_at,
 -- Создание администратора по умолчанию
 -- Пароль: admin123 (хеш bcrypt)
 INSERT INTO users (id, email, password_hash, tier_id, role, created_at, updated_at) VALUES
-('user-admin-001', 'admin@oneaihub.com', '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjPeGvGzluqHveYfnwdq6hfOuFq/9G', 'tier-enterprise-001', 'admin', NOW(), NOW());
+('user-admin-001', 'admin@oneaihub.com', '$2a$12$kuF1fWKB80ndbTMcHVFBAedVI6HMgyvYm0LfORbT5/xw5787aoFiu', 'tier-enterprise-001', 'admin', NOW(), NOW());
 
 -- Создание записи трат для администратора
 INSERT INTO user_spendings (user_id, total_spent, created_at, updated_at) VALUES
