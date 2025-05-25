@@ -8,9 +8,17 @@ import (
 type UserRole string
 
 const (
-	RoleAdmin    UserRole = "admin"    // Администратор
-	RoleEmployee UserRole = "employee" // Сотрудник
-	RoleCustomer UserRole = "customer" // Обычный пользователь
+	// RoleAdmin - администратор системы
+	RoleAdmin UserRole = "admin"
+
+	// RoleSupport - сотрудник поддержки
+	RoleSupport UserRole = "support"
+
+	// RoleCustomer - обычный клиент
+	RoleCustomer UserRole = "customer"
+
+	// RoleEnterprise - корпоративный клиент
+	RoleEnterprise UserRole = "enterprise"
 )
 
 // User - данные пользователя

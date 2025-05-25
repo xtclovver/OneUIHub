@@ -195,6 +195,7 @@ CREATE TABLE users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   tier_id VARCHAR(36) NOT NULL,
+  role ENUM('customer', 'enterprise', 'support', 'admin') NOT NULL DEFAULT 'customer',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (tier_id) REFERENCES tiers(id)
@@ -382,7 +383,59 @@ func (s *modelSyncService) SyncModels(ctx context.Context) error {
 }
 ```
 
-## Обновленный план имплементации
+## Методы LiteLLM для интеграции
+
+### Управление моделями
+- `GET /models` - получение списка всех доступных моделей
+- `GET /model/info` - получение детальной информации о модели
+- `GET /model_group/info` - информация о группе моделей
+
+### Запросы к моделям
+- `POST /chat/completions` - отправка запроса чата к модели
+- `POST /completions` - отправка запроса на завершение текста
+- `POST /embeddings` - получение эмбеддингов
+- `POST /utils/token_counter` - подсчет токенов
+
+### Управление ключами
+- `POST /key/generate` - генерация API ключа
+- `POST /key/update` - обновление API ключа
+- `GET /key/info` - информация о ключе
+- `POST /key/delete` - удаление ключа
+- `GET /key/list` - список ключей
+
+### Отслеживание расходов
+- `GET /spend/logs` - просмотр логов расходов
+- `POST /spend/calculate` - расчет расходов
+- `GET /spend/tags` - просмотр тегов расходов
+
+## Необходимые методы LiteLLM API для интеграции
+
+### Управление моделями
+- `GET /models` - получение списка всех доступных моделей
+- `GET /model/info` - получение детальной информации о модели
+- `GET /model_group/info` - информация о группе моделей
+- `POST /model/update` - обновление параметров модели
+
+### Запросы к моделям
+- `POST /chat/completions` - отправка запроса чата к модели
+- `POST /completions` - отправка запроса на завершение текста
+- `POST /embeddings` - получение эмбеддингов
+- `POST /utils/token_counter` - подсчет токенов
+
+### Управление ключами
+- `POST /key/generate` - генерация API ключа
+- `POST /key/update` - обновление API ключа
+- `GET /key/info` - информация о ключе
+- `POST /key/delete` - удаление ключа
+- `GET /key/list` - список ключей
+
+### Отслеживание расходов
+- `GET /spend/logs` - просмотр логов расходов
+- `POST /spend/calculate` - расчет расходов
+- `GET /spend/tags` - просмотр тегов расходов
+- `GET /global/spend/report` - получение глобального отчета о расходах
+
+## Обновленный план имплементации с учетом LiteLLM
 1. Настройка проекта и репозитория
 2. Создание базовых моделей и миграций БД
 3. Разработка интеграции с LiteLLM
