@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"backend/internal/domain"
-	"backend/internal/repository"
+	"oneui-hub/internal/domain"
+	"oneui-hub/internal/repository"
 )
 
 type TierService interface {

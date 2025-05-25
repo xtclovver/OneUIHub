@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"backend/internal/domain"
+	"oneui-hub/internal/domain"
 
 	"gorm.io/gorm"
 )

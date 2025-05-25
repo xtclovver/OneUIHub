@@ -191,6 +191,28 @@ type ModelSyncService interface {
 
 ### Обновленная схема данных
 ```sql
+-- Создание таблицы тарифов (должна быть первой, так как на неё ссылаются пользователи)
+CREATE TABLE tiers (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_free BOOLEAN DEFAULT FALSE,
+  price DECIMAL(10,2) DEFAULT 0.00,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Создание таблицы компаний (должна быть перед моделями)
+CREATE TABLE companies (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  logo_url VARCHAR(255),
+  description TEXT,
+  external_id VARCHAR(255) UNIQUE,  -- ID в системе LiteLLM
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Создание таблицы пользователей (после тарифов)
 CREATE TABLE users (
   id VARCHAR(36) PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -202,25 +224,16 @@ CREATE TABLE users (
   FOREIGN KEY (tier_id) REFERENCES tiers(id)
 );
 
-CREATE TABLE tiers (
-  id VARCHAR(36) PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  description TEXT,
-  is_free BOOLEAN DEFAULT FALSE,
-  price DECIMAL(10,2) DEFAULT 0.00,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE companies (
-  id VARCHAR(36) PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  logo_url VARCHAR(255),
-  description TEXT,
-  external_id VARCHAR(255) UNIQUE,  -- ID в системе LiteLLM
+-- Создание таблицы трат пользователей (для автоматического повышения тарифа)
+CREATE TABLE user_spendings (
+  user_id VARCHAR(36) PRIMARY KEY,
+  total_spent DECIMAL(10, 2) DEFAULT 0.00,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Создание таблицы моделей (после компаний)
 CREATE TABLE models (
   id VARCHAR(36) PRIMARY KEY,
   company_id VARCHAR(36) NOT NULL,
@@ -233,6 +246,7 @@ CREATE TABLE models (
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
+-- Создание таблицы конфигураций моделей (после моделей)
 CREATE TABLE model_configs (
   id VARCHAR(36) PRIMARY KEY,
   model_id VARCHAR(36) NOT NULL,
@@ -245,6 +259,7 @@ CREATE TABLE model_configs (
   FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE
 );
 
+-- Создание таблицы лимитов (после моделей и тарифов)
 CREATE TABLE rate_limits (
   id VARCHAR(36) PRIMARY KEY,
   model_id VARCHAR(36) NOT NULL,
@@ -260,6 +275,7 @@ CREATE TABLE rate_limits (
   UNIQUE KEY unique_model_tier (model_id, tier_id)
 );
 
+-- Создание таблицы API ключей (после пользователей)
 CREATE TABLE api_keys (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
@@ -271,6 +287,7 @@ CREATE TABLE api_keys (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Создание таблицы запросов (после пользователей и моделей)
 CREATE TABLE requests (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
@@ -285,6 +302,7 @@ CREATE TABLE requests (
   FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE
 );
 
+-- Создание таблицы лимитов пользователей (после пользователей)
 CREATE TABLE user_limits (
   user_id VARCHAR(36) PRIMARY KEY,
   monthly_token_limit BIGINT,

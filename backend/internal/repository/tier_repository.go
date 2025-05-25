@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"backend/internal/domain"
+	"oneui-hub/internal/domain"
 )
 
 type tierRepository struct {

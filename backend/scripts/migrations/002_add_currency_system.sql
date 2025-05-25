@@ -2,14 +2,14 @@
 -- Дата: 2024-01-XX
 
 -- Создание таблицы валют
-CREATE TABLE currencies (
+CREATE TABLE IF NOT EXISTS currencies (
   id VARCHAR(3) PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   symbol VARCHAR(10) NOT NULL
 );
 
 -- Создание таблицы курсов валют
-CREATE TABLE exchange_rates (
+CREATE TABLE IF NOT EXISTS exchange_rates (
   id VARCHAR(36) PRIMARY KEY,
   from_currency VARCHAR(3) NOT NULL,
   to_currency VARCHAR(3) NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE exchange_rates (
 );
 
 -- Создание таблицы для отслеживания общих трат пользователей
-CREATE TABLE user_spendings (
+CREATE TABLE IF NOT EXISTS user_spendings (
   user_id VARCHAR(36) PRIMARY KEY,
   total_spent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -29,7 +29,7 @@ CREATE TABLE user_spendings (
 );
 
 -- Вставляем базовые валюты
-INSERT INTO currencies (id, name, symbol) VALUES 
+INSERT IGNORE INTO currencies (id, name, symbol) VALUES 
 ('USD', 'US Dollar', '$'),
 ('RUB', 'Russian Ruble', '₽');
 

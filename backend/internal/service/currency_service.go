@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"backend/internal/domain"
-	"backend/internal/repository"
+	"oneui-hub/internal/domain"
+	"oneui-hub/internal/repository"
 
 	"github.com/google/uuid"
 )

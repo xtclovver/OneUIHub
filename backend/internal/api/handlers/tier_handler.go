@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"backend/internal/service"
+	"oneui-hub/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

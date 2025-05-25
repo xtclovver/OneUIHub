@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
-	"backend/internal/api/handlers"
-	"backend/internal/middleware"
+	"oneui-hub/internal/api/handlers"
+	"oneui-hub/internal/middleware"
 )
 
 type Router struct {
