@@ -38,9 +38,23 @@ export interface Model {
   description?: string;
   features?: string;
   external_id: string;
+  
+  // Новые поля из LiteLLM
+  providers?: string; // JSON массив провайдеров
+  max_input_tokens?: number;
+  max_output_tokens?: number;
+  mode?: string;
+  supports_parallel_function_calling?: boolean;
+  supports_vision?: boolean;
+  supports_web_search?: boolean;
+  supports_reasoning?: boolean;
+  supports_function_calling?: boolean;
+  supported_openai_params?: string; // JSON массив
+  
   created_at: string;
   updated_at: string;
   config?: ModelConfig;
+  company?: Company;
 }
 
 export interface ModelConfig {

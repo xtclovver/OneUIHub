@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"oneui-hub/internal/domain"
+	"backend/internal/domain"
 )
 
 type UserRepository interface {
@@ -22,6 +22,8 @@ type TierRepository interface {
 	Update(ctx context.Context, tier *domain.Tier) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context) ([]*domain.Tier, error)
+	GetAll(ctx context.Context) ([]domain.Tier, error)
+	GetAllOrderedByPrice(ctx context.Context) ([]domain.Tier, error)
 }
 
 type CompanyRepository interface {
@@ -83,5 +85,39 @@ type UserLimitRepository interface {
 	Create(ctx context.Context, userLimit *domain.UserLimit) error
 	GetByUserID(ctx context.Context, userID string) (*domain.UserLimit, error)
 	Update(ctx context.Context, userLimit *domain.UserLimit) error
+	Delete(ctx context.Context, userID string) error
+}
+
+type BudgetRepository interface {
+	Create(ctx context.Context, budget *domain.Budget) error
+	GetByID(ctx context.Context, id string) (*domain.Budget, error)
+	GetByExternalID(ctx context.Context, externalID string) (*domain.Budget, error)
+	GetByUserID(ctx context.Context, userID string) ([]*domain.Budget, error)
+	Update(ctx context.Context, budget *domain.Budget) error
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, limit, offset int) ([]*domain.Budget, error)
+}
+
+type CurrencyRepository interface {
+	Create(ctx context.Context, currency *domain.Currency) error
+	GetByID(ctx context.Context, id string) (*domain.Currency, error)
+	GetAll(ctx context.Context) ([]domain.Currency, error)
+	Update(ctx context.Context, currency *domain.Currency) error
+	Delete(ctx context.Context, id string) error
+}
+
+type ExchangeRateRepository interface {
+	Create(ctx context.Context, rate *domain.ExchangeRate) error
+	GetByID(ctx context.Context, id string) (*domain.ExchangeRate, error)
+	GetRate(ctx context.Context, fromCurrency, toCurrency string) (*domain.ExchangeRate, error)
+	Update(ctx context.Context, rate *domain.ExchangeRate) error
+	Delete(ctx context.Context, id string) error
+	GetAll(ctx context.Context) ([]*domain.ExchangeRate, error)
+}
+
+type UserSpendingRepository interface {
+	Create(ctx context.Context, spending *domain.UserSpending) error
+	GetByUserID(ctx context.Context, userID string) (*domain.UserSpending, error)
+	Update(ctx context.Context, spending *domain.UserSpending) error
 	Delete(ctx context.Context, userID string) error
 }

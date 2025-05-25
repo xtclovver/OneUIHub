@@ -16,6 +16,7 @@ import {
 import { RootState } from '../../redux/store';
 import { fetchModelById } from '../../redux/slices/modelsSlice';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ModelCapabilities from '../../components/common/ModelCapabilities';
 
 const ModelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -230,12 +231,26 @@ const ModelDetailPage: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Лимиты по тирам */}
+        {/* Возможности модели */}
         <motion.div
           className="glass-card p-8 mb-8"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="flex items-center mb-6">
+            <SparklesIcon className="w-6 h-6 text-ai-orange mr-2" />
+            <h2 className="text-2xl font-bold text-white">Возможности и характеристики</h2>
+          </div>
+          <ModelCapabilities model={selectedModel} />
+        </motion.div>
+
+        {/* Лимиты по тирам */}
+        <motion.div
+          className="glass-card p-8 mb-8"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
         >
           <div className="flex items-center mb-6">
             <InformationCircleIcon className="w-6 h-6 text-ai-orange mr-2" />
@@ -317,7 +332,7 @@ const ModelDetailPage: React.FC = () => {
           className="flex flex-col sm:flex-row gap-4 justify-center"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
         >
           <Link to="/register" className="btn-primary">
             Начать использовать

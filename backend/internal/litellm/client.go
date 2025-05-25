@@ -33,6 +33,84 @@ type LiteLLMPricing struct {
 	OutputCost float64 `json:"output_cost_per_token"`
 }
 
+// Структуры для model_group/info эндпоинта
+type LiteLLMModelGroupResponse struct {
+	Data []LiteLLMModelGroup `json:"data"`
+}
+
+type LiteLLMModelGroup struct {
+	ModelGroup                       string   `json:"model_group"`
+	Providers                        []string `json:"providers"`
+	MaxInputTokens                   int      `json:"max_input_tokens"`
+	MaxOutputTokens                  int      `json:"max_output_tokens"`
+	InputCostPerToken                float64  `json:"input_cost_per_token"`
+	OutputCostPerToken               float64  `json:"output_cost_per_token"`
+	Mode                             string   `json:"mode"`
+	TPM                              *int     `json:"tpm"`
+	RPM                              *int     `json:"rpm"`
+	SupportsParallelFunctionCalling  bool     `json:"supports_parallel_function_calling"`
+	SupportsVision                   bool     `json:"supports_vision"`
+	SupportsWebSearch                bool     `json:"supports_web_search"`
+	SupportsReasoning                bool     `json:"supports_reasoning"`
+	SupportsFunctionCalling          bool     `json:"supports_function_calling"`
+	SupportedOpenAIParams            []string `json:"supported_openai_params"`
+	ConfigurableClientsideAuthParams *string  `json:"configurable_clientside_auth_params"`
+}
+
+// Структуры для управления моделями
+type LiteLLMModelRequest struct {
+	ModelName     string                 `json:"model_name"`
+	LiteLLMParams map[string]interface{} `json:"litellm_params"`
+	ModelInfo     *LiteLLMModelInfo      `json:"model_info,omitempty"`
+}
+
+type LiteLLMModelInfo struct {
+	ID         string   `json:"id,omitempty"`
+	Mode       string   `json:"mode,omitempty"`
+	InputCost  *float64 `json:"input_cost_per_token,omitempty"`
+	OutputCost *float64 `json:"output_cost_per_token,omitempty"`
+	MaxTokens  *int     `json:"max_tokens,omitempty"`
+	BaseModel  string   `json:"base_model,omitempty"`
+}
+
+type LiteLLMModelUpdateRequest struct {
+	ModelID   string            `json:"model_id"`
+	ModelInfo *LiteLLMModelInfo `json:"model_info,omitempty"`
+	ModelName string            `json:"model_name,omitempty"`
+}
+
+type LiteLLMModelDeleteRequest struct {
+	ID string `json:"id"`
+}
+
+// Структуры для управления бюджетами
+type LiteLLMBudgetRequest struct {
+	UserID         string     `json:"user_id,omitempty"`
+	TeamID         string     `json:"team_id,omitempty"`
+	MaxBudget      *float64   `json:"max_budget,omitempty"`
+	BudgetDuration string     `json:"budget_duration,omitempty"`
+	ResetAt        *time.Time `json:"reset_at,omitempty"`
+}
+
+type LiteLLMBudgetResponse struct {
+	ID             string     `json:"id"`
+	UserID         string     `json:"user_id"`
+	TeamID         string     `json:"team_id"`
+	MaxBudget      float64    `json:"max_budget"`
+	SpentBudget    float64    `json:"spent_budget"`
+	BudgetDuration string     `json:"budget_duration"`
+	ResetAt        *time.Time `json:"reset_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type LiteLLMBudgetUpdateRequest struct {
+	ID             string     `json:"id"`
+	MaxBudget      *float64   `json:"max_budget,omitempty"`
+	BudgetDuration *string    `json:"budget_duration,omitempty"`
+	ResetAt        *time.Time `json:"reset_at,omitempty"`
+}
+
 type LiteLLMKeyRequest struct {
 	KeyAlias  string                 `json:"key_alias,omitempty"`
 	TeamID    string                 `json:"team_id,omitempty"`
@@ -67,6 +145,7 @@ func NewClient(cfg *config.LiteLLMConfig) *Client {
 	}
 }
 
+// Методы для работы с моделями
 func (c *Client) GetModels(ctx context.Context) ([]*LiteLLMModel, error) {
 	req, err := c.newRequest(ctx, "GET", "/models", nil)
 	if err != nil {
@@ -79,6 +158,23 @@ func (c *Client) GetModels(ctx context.Context) ([]*LiteLLMModel, error) {
 
 	if err := c.doRequest(req, &response); err != nil {
 		return nil, fmt.Errorf("failed to get models: %w", err)
+	}
+
+	return response.Data, nil
+}
+
+func (c *Client) GetV1Models(ctx context.Context) ([]*LiteLLMModel, error) {
+	req, err := c.newRequest(ctx, "GET", "/v1/models", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response struct {
+		Data []*LiteLLMModel `json:"data"`
+	}
+
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get v1 models: %w", err)
 	}
 
 	return response.Data, nil
@@ -99,6 +195,176 @@ func (c *Client) GetModelInfo(ctx context.Context, modelID string) (*LiteLLMMode
 	return &model, nil
 }
 
+func (c *Client) GetV1ModelInfo(ctx context.Context, modelID string) (*LiteLLMModel, error) {
+	endpoint := fmt.Sprintf("/v1/model/info?model=%s", modelID)
+	req, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var model LiteLLMModel
+	if err := c.doRequest(req, &model); err != nil {
+		return nil, fmt.Errorf("failed to get v1 model info: %w", err)
+	}
+
+	return &model, nil
+}
+
+func (c *Client) GetModelGroupInfo(ctx context.Context) (*LiteLLMModelGroupResponse, error) {
+	req, err := c.newRequest(ctx, "GET", "/model_group/info", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMModelGroupResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get model group info: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *Client) CreateModel(ctx context.Context, modelReq *LiteLLMModelRequest) error {
+	req, err := c.newRequest(ctx, "POST", "/model/new", modelReq)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to create model: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateModel(ctx context.Context, modelReq *LiteLLMModelUpdateRequest) error {
+	req, err := c.newRequest(ctx, "POST", "/model/update", modelReq)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to update model: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) PatchModel(ctx context.Context, modelID string, modelReq *LiteLLMModelUpdateRequest) error {
+	endpoint := fmt.Sprintf("/model/%s/update", modelID)
+	req, err := c.newRequest(ctx, "PATCH", endpoint, modelReq)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to patch model: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteModel(ctx context.Context, modelID string) error {
+	reqBody := &LiteLLMModelDeleteRequest{ID: modelID}
+	req, err := c.newRequest(ctx, "POST", "/model/delete", reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to delete model: %w", err)
+	}
+
+	return nil
+}
+
+// Методы для работы с бюджетами
+func (c *Client) CreateBudget(ctx context.Context, budgetReq *LiteLLMBudgetRequest) (*LiteLLMBudgetResponse, error) {
+	req, err := c.newRequest(ctx, "POST", "/budget/new", budgetReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMBudgetResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to create budget: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *Client) UpdateBudget(ctx context.Context, budgetReq *LiteLLMBudgetUpdateRequest) (*LiteLLMBudgetResponse, error) {
+	req, err := c.newRequest(ctx, "POST", "/budget/update", budgetReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMBudgetResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to update budget: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *Client) GetBudgetInfo(ctx context.Context, budgetID string) (*LiteLLMBudgetResponse, error) {
+	reqBody := map[string]string{"id": budgetID}
+	req, err := c.newRequest(ctx, "POST", "/budget/info", reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMBudgetResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get budget info: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *Client) GetBudgetSettings(ctx context.Context) (map[string]interface{}, error) {
+	req, err := c.newRequest(ctx, "GET", "/budget/settings", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response map[string]interface{}
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get budget settings: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *Client) ListBudgets(ctx context.Context) ([]*LiteLLMBudgetResponse, error) {
+	req, err := c.newRequest(ctx, "GET", "/budget/list", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response []*LiteLLMBudgetResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to list budgets: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *Client) DeleteBudget(ctx context.Context, budgetID string) error {
+	reqBody := map[string]string{"id": budgetID}
+	req, err := c.newRequest(ctx, "POST", "/budget/delete", reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to delete budget: %w", err)
+	}
+
+	return nil
+}
+
+// Существующие методы
 func (c *Client) CreateKey(ctx context.Context, keyReq *LiteLLMKeyRequest) (*LiteLLMKeyResponse, error) {
 	req, err := c.newRequest(ctx, "POST", "/key/generate", keyReq)
 	if err != nil {

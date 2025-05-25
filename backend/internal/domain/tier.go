@@ -11,6 +11,7 @@ type Tier struct {
 	Name        string         `json:"name" gorm:"type:varchar(100);not null"`
 	Description string         `json:"description" gorm:"type:text"`
 	IsFree      bool           `json:"is_free" gorm:"default:false"`
+	// Price - сумма в USD, которую нужно потратить для перехода на этот тариф
 	Price       float64        `json:"price" gorm:"type:decimal(10,2);default:0.00"`
 	CreatedAt   time.Time      `json:"created_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`

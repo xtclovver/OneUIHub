@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"oneui-hub/internal/domain"
+	"backend/internal/domain"
 )
 
 type tierRepository struct {
@@ -64,6 +64,22 @@ func (r *tierRepository) List(ctx context.Context) ([]*domain.Tier, error) {
 	var tiers []*domain.Tier
 	if err := r.db.WithContext(ctx).Find(&tiers).Error; err != nil {
 		return nil, fmt.Errorf("failed to list tiers: %w", err)
+	}
+	return tiers, nil
+}
+
+func (r *tierRepository) GetAll(ctx context.Context) ([]domain.Tier, error) {
+	var tiers []domain.Tier
+	if err := r.db.WithContext(ctx).Find(&tiers).Error; err != nil {
+		return nil, fmt.Errorf("failed to get all tiers: %w", err)
+	}
+	return tiers, nil
+}
+
+func (r *tierRepository) GetAllOrderedByPrice(ctx context.Context) ([]domain.Tier, error) {
+	var tiers []domain.Tier
+	if err := r.db.WithContext(ctx).Order("price ASC").Find(&tiers).Error; err != nil {
+		return nil, fmt.Errorf("failed to get tiers ordered by price: %w", err)
 	}
 	return tiers, nil
 }

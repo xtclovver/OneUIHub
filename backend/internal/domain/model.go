@@ -7,15 +7,28 @@ import (
 )
 
 type Model struct {
-	ID          string         `json:"id" gorm:"type:varchar(36);primaryKey"`
-	CompanyID   string         `json:"company_id" gorm:"type:varchar(36);not null"`
-	Name        string         `json:"name" gorm:"type:varchar(255);not null"`
-	Description string         `json:"description" gorm:"type:text"`
-	Features    string         `json:"features" gorm:"type:text"`
-	ExternalID  string         `json:"external_id" gorm:"type:varchar(255);uniqueIndex"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+	ID          string `json:"id" gorm:"type:varchar(36);primaryKey"`
+	CompanyID   string `json:"company_id" gorm:"type:varchar(36);not null"`
+	Name        string `json:"name" gorm:"type:varchar(255);not null"`
+	Description string `json:"description" gorm:"type:text"`
+	Features    string `json:"features" gorm:"type:text"`
+	ExternalID  string `json:"external_id" gorm:"type:varchar(255);uniqueIndex"`
+
+	// Новые поля из LiteLLM
+	Providers                       string `json:"providers" gorm:"type:text"` // JSON массив провайдеров
+	MaxInputTokens                  *int   `json:"max_input_tokens" gorm:"type:int"`
+	MaxOutputTokens                 *int   `json:"max_output_tokens" gorm:"type:int"`
+	Mode                            string `json:"mode" gorm:"type:varchar(50)"`
+	SupportsParallelFunctionCalling bool   `json:"supports_parallel_function_calling" gorm:"default:false"`
+	SupportsVision                  bool   `json:"supports_vision" gorm:"default:false"`
+	SupportsWebSearch               bool   `json:"supports_web_search" gorm:"default:false"`
+	SupportsReasoning               bool   `json:"supports_reasoning" gorm:"default:false"`
+	SupportsFunctionCalling         bool   `json:"supports_function_calling" gorm:"default:false"`
+	SupportedOpenAIParams           string `json:"supported_openai_params" gorm:"type:text"` // JSON массив
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// Связи
 	Company     *Company     `json:"company,omitempty" gorm:"foreignKey:CompanyID"`

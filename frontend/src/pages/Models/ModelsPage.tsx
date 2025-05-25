@@ -79,10 +79,10 @@ const ModelsPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             AI <span className="gradient-text">Модели</span>
           </h1>
-          <p className="text-xl text-ai-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Исследуйте и сравнивайте различные модели искусственного интеллекта
           </p>
         </motion.div>
@@ -96,7 +96,7 @@ const ModelsPage: React.FC = () => {
         >
           <div className="flex flex-col lg:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ai-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Поиск моделей..."
@@ -125,7 +125,7 @@ const ModelsPage: React.FC = () => {
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
                     Компания
                   </label>
                   <select
@@ -143,7 +143,7 @@ const ModelsPage: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
                     Тип
                   </label>
                   <select
@@ -158,7 +158,7 @@ const ModelsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
                     Статус
                   </label>
                   <select
@@ -219,11 +219,11 @@ const ModelsPage: React.FC = () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
           >
-            <CpuChipIcon className="w-16 h-16 text-ai-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
+            <CpuChipIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {searchTerm || Object.keys(filters).length > 0 ? 'Модели не найдены' : 'Нет доступных моделей'}
             </h3>
-            <p className="text-ai-gray-400">
+            <p className="text-gray-600">
               {searchTerm || Object.keys(filters).length > 0 
                 ? 'Попробуйте изменить поисковый запрос или фильтры'
                 : 'Модели будут добавлены в ближайшее время'
