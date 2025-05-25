@@ -93,7 +93,11 @@ func (h *ModelHandler) GetAllModels(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"models": models})
+	c.JSON(http.StatusOK, gin.H{
+		"data":    models,
+		"success": true,
+		"message": "Models retrieved successfully",
+	})
 }
 
 func (h *ModelHandler) GetModelByID(c *gin.Context) {
@@ -105,7 +109,11 @@ func (h *ModelHandler) GetModelByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"model": model})
+	c.JSON(http.StatusOK, gin.H{
+		"data":    model,
+		"success": true,
+		"message": "Model retrieved successfully",
+	})
 }
 
 func (h *ModelHandler) CreateModel(c *gin.Context) {

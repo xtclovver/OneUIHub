@@ -2,6 +2,7 @@
 export interface User {
   id: string;
   email: string;
+  name?: string;
   tier_id: string;
   role: 'customer' | 'enterprise' | 'support' | 'admin';
   created_at: string;

@@ -26,6 +26,7 @@ const ModelsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<ModelFilters>({});
+  const [pricePerThousand, setPricePerThousand] = useState(false); // false = за миллион, true = за тысячу
 
   useEffect(() => {
     dispatch(fetchModels(filters) as any);
@@ -105,6 +106,31 @@ const ModelsPage: React.FC = () => {
                 className="input-field w-full pl-12"
               />
             </div>
+            
+            {/* Переключатель цен */}
+            <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1">
+              <button
+                onClick={() => setPricePerThousand(false)}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  !pricePerThousand
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                За 1M токенов
+              </button>
+              <button
+                onClick={() => setPricePerThousand(true)}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  pricePerThousand
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                За 1K токенов
+              </button>
+            </div>
+            
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="btn-secondary flex items-center"
@@ -206,6 +232,7 @@ const ModelsPage: React.FC = () => {
                 model={model}
                 index={index}
                 showCompany={true}
+                pricePerThousand={pricePerThousand}
               />
             ))}
           </motion.div>

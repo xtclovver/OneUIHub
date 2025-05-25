@@ -30,9 +30,10 @@ func NewUserService(
 }
 
 type CreateUserRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
-	TierName string `json:"tier_name,omitempty"`
+	Email    string  `json:"email" validate:"required,email"`
+	Password string  `json:"password" validate:"required,min=8"`
+	Name     *string `json:"name,omitempty"`
+	TierName string  `json:"tier_name,omitempty"`
 }
 
 type LoginRequest struct {
@@ -42,6 +43,7 @@ type LoginRequest struct {
 
 type UpdateUserRequest struct {
 	Email  string           `json:"email,omitempty" validate:"omitempty,email"`
+	Name   *string          `json:"name,omitempty"`
 	TierID string           `json:"tier_id,omitempty"`
 	Role   *domain.UserRole `json:"role,omitempty"`
 }
@@ -74,6 +76,7 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 	user := &domain.User{
 		ID:           uuid.New().String(),
 		Email:        req.Email,
+		Name:         req.Name,
 		PasswordHash: string(hashedPassword),
 		TierID:       tier.ID,
 		Role:         domain.RoleCustomer,
@@ -131,6 +134,10 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req *UpdateUser
 			return nil, fmt.Errorf("email %s is already taken", req.Email)
 		}
 		user.Email = req.Email
+	}
+
+	if req.Name != nil {
+		user.Name = req.Name
 	}
 
 	if req.TierID != "" {

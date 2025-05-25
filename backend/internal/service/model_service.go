@@ -17,12 +17,17 @@ type ModelService interface {
 	SyncModelsFromLiteLLM(ctx context.Context) error
 	SyncModelsFromModelGroup(ctx context.Context) error
 
-	// CRUD операции
+	// CRUD операции для моделей
 	GetAllModels(ctx context.Context) ([]*domain.Model, error)
 	GetModelByID(ctx context.Context, id string) (*domain.Model, error)
 	CreateModel(ctx context.Context, model *domain.Model) error
 	UpdateModel(ctx context.Context, model *domain.Model) error
 	DeleteModel(ctx context.Context, id string) error
+
+	// CRUD операции для компаний
+	GetAllCompanies(ctx context.Context) ([]*domain.Company, error)
+	GetCompanyByID(ctx context.Context, id string) (*domain.Company, error)
+	GetModelsByCompanyID(ctx context.Context, companyID string) ([]*domain.Model, error)
 
 	// Управление моделями в LiteLLM
 	CreateLiteLLMModel(ctx context.Context, req *litellm.LiteLLMModelRequest) error
@@ -323,4 +328,18 @@ func (s *modelService) SyncModelsFromModelGroup(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Методы для работы с компаниями
+
+func (s *modelService) GetAllCompanies(ctx context.Context) ([]*domain.Company, error) {
+	return s.companyRepo.List(ctx, 1000, 0) // Получаем до 1000 компаний
+}
+
+func (s *modelService) GetCompanyByID(ctx context.Context, id string) (*domain.Company, error) {
+	return s.companyRepo.GetByID(ctx, id)
+}
+
+func (s *modelService) GetModelsByCompanyID(ctx context.Context, companyID string) ([]*domain.Model, error) {
+	return s.modelRepo.GetByCompanyID(ctx, companyID, 1000, 0) // Получаем до 1000 моделей
 }

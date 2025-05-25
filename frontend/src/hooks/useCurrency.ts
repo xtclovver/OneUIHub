@@ -24,25 +24,34 @@ export const useCurrency = () => {
 
   const fetchCurrencies = async () => {
     try {
-      const response = await fetch('/api/currencies');
+      const response = await fetch('http://localhost:8080/api/v1/currencies');
       if (response.ok) {
         const data = await response.json();
-        setCurrencies(data);
+        setCurrencies(data.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch currencies:', error);
+      // Используем моковые данные при ошибке
+      setCurrencies([
+        { id: 'USD', name: 'US Dollar', symbol: '$' },
+        { id: 'RUB', name: 'Russian Ruble', symbol: '₽' }
+      ]);
     }
   };
 
   const fetchExchangeRates = async () => {
     try {
-      const response = await fetch('/api/exchange-rates');
+      const response = await fetch('http://localhost:8080/api/v1/currencies/exchange-rates');
       if (response.ok) {
         const data = await response.json();
-        setExchangeRates(data);
+        setExchangeRates(data.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch exchange rates:', error);
+      // Используем моковые данные при ошибке
+      setExchangeRates([
+        { from_currency: 'USD', to_currency: 'RUB', rate: 95.0 }
+      ]);
     } finally {
       setLoading(false);
     }

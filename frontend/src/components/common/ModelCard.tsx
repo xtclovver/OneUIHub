@@ -19,9 +19,10 @@ interface ModelCardProps {
   model: Model;
   index?: number;
   showCompany?: boolean;
+  pricePerThousand?: boolean;
 }
 
-const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = false }) => {
+const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = false, pricePerThousand = false }) => {
   const { companies } = useSelector((state: RootState) => state.companies);
   const { getPriceInBothCurrencies, loading: currencyLoading } = useCurrency();
   
@@ -166,14 +167,22 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                   <div className="space-y-1">
                     <div className="flex items-center space-x-1 text-gray-600 text-xs">
                       <ArrowRightIcon className="w-3 h-3 rotate-180" />
-                      <span>Вход/1K токенов:</span>
+                      <span>Вход/{pricePerThousand ? '1K' : '1M'} токенов:</span>
                     </div>
                     <div className="text-xs space-y-1">
                       <div className="text-gray-800 font-medium">
-                        {getPriceInBothCurrencies(model.config.input_token_cost).usd}
+                        {getPriceInBothCurrencies(
+                          pricePerThousand 
+                            ? model.config.input_token_cost 
+                            : model.config.input_token_cost * 1000
+                        ).usd}
                       </div>
                       <div className="text-gray-600">
-                        {getPriceInBothCurrencies(model.config.input_token_cost).rub}
+                        {getPriceInBothCurrencies(
+                          pricePerThousand 
+                            ? model.config.input_token_cost 
+                            : model.config.input_token_cost * 1000
+                        ).rub}
                       </div>
                     </div>
                   </div>
@@ -182,14 +191,22 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                   <div className="space-y-1">
                     <div className="flex items-center space-x-1 text-gray-600 text-xs">
                       <ArrowRightIcon className="w-3 h-3" />
-                      <span>Выход/1K токенов:</span>
+                      <span>Выход/{pricePerThousand ? '1K' : '1M'} токенов:</span>
                     </div>
                     <div className="text-xs space-y-1">
                       <div className="text-gray-800 font-medium">
-                        {getPriceInBothCurrencies(model.config.output_token_cost).usd}
+                        {getPriceInBothCurrencies(
+                          pricePerThousand 
+                            ? model.config.output_token_cost 
+                            : model.config.output_token_cost * 1000
+                        ).usd}
                       </div>
                       <div className="text-gray-600">
-                        {getPriceInBothCurrencies(model.config.output_token_cost).rub}
+                        {getPriceInBothCurrencies(
+                          pricePerThousand 
+                            ? model.config.output_token_cost 
+                            : model.config.output_token_cost * 1000
+                        ).rub}
                       </div>
                     </div>
                   </div>

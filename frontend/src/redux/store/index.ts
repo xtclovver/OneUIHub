@@ -4,6 +4,7 @@ import companiesSlice from '../slices/companiesSlice';
 import modelsSlice from '../slices/modelsSlice';
 import requestsSlice from '../slices/requestsSlice';
 import adminSlice from '../slices/adminSlice';
+import litellmSlice from '../slices/litellmSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     models: modelsSlice,
     requests: requestsSlice,
     admin: adminSlice,
+    litellm: litellmSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -5,7 +5,7 @@ import { authAPI } from '../../api/auth';
 const initialState: AuthState = {
   user: null,
   token: localStorage.getItem('token'),
-  isAuthenticated: false,
+  isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
   error: null,
 };
@@ -45,6 +45,24 @@ export const getProfile = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Ошибка получения профиля');
     }
+  }
+);
+
+// Новый thunk для инициализации приложения
+export const initializeAuth = createAsyncThunk(
+  'auth/initialize',
+  async (_, { dispatch, rejectWithValue }) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const response = await authAPI.getProfile();
+        return response.data.data;
+      } catch (error: any) {
+        localStorage.removeItem('token');
+        return rejectWithValue('Токен недействителен');
+      }
+    }
+    return null;
   }
 );
 
@@ -109,6 +127,24 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.token = null;
         localStorage.removeItem('token');
+      })
+      // Initialize Auth
+      .addCase(initializeAuth.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.isLoading = false;
+        if (action.payload) {
+          state.user = action.payload;
+          state.isAuthenticated = true;
+        } else {
+          state.isAuthenticated = false;
+        }
+      })
+      .addCase(initializeAuth.rejected, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.token = null;
       });
   },
 });

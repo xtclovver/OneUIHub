@@ -61,15 +61,17 @@ func main() {
 	// Инициализируем обработчики
 	authHandler := handlers.NewAuthHandler(userService, jwtManager)
 	modelHandler := handlers.NewModelHandler(modelService)
+	companyHandler := handlers.NewCompanyHandler(modelService)
 	budgetHandler := handlers.NewBudgetHandler(budgetService)
 	currencyHandler := handlers.NewCurrencyHandler(currencyService)
 	tierHandler := handlers.NewTierHandler(tierService)
+	userHandler := handlers.NewUserHandler(userService, litellmClient)
 
 	// Инициализируем middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
 	// Инициализируем маршруты
-	router := routes.NewRouter(authHandler, modelHandler, budgetHandler, currencyHandler, tierHandler, authMiddleware)
+	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, authMiddleware)
 
 	// Запускаем сервер
 	engine := router.SetupRoutes()

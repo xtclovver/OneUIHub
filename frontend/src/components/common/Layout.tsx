@@ -30,7 +30,6 @@ const Layout: React.FC = () => {
 
   const userNavigation = [
     { name: 'Профиль', href: '/profile', icon: UserIcon },
-    { name: 'Запросы', href: '/requests', icon: ClockIcon },
   ];
 
   const adminNavigation = [

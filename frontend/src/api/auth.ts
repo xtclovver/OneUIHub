@@ -1,96 +1,49 @@
 import { apiClient } from './client';
 import { ApiResponse, LoginCredentials, RegisterCredentials, User } from '../types';
 
-// Мок пользователь
-const mockUser: User = {
-  id: '1',
-  email: 'user@example.com',
-  tier_id: '2',
-  role: 'customer',
-  created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T00:00:00Z',
-};
-
 export const authAPI = {
-  login: (credentials: LoginCredentials): Promise<{ data: ApiResponse<{ user: User; token: string }> }> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (credentials.email && credentials.password) {
-          resolve({
-            data: {
-              data: {
-                user: mockUser,
-                token: 'mock-jwt-token-12345'
-              },
-              success: true,
-              message: 'Успешный вход'
-            }
-          });
-        } else {
-          reject({
-            response: {
-              data: {
-                message: 'Неверные учетные данные'
-              }
-            }
-          });
-        }
-      }, 1000);
-    });
+  login: async (credentials: LoginCredentials): Promise<{ data: ApiResponse<{ user: User; token: string }> }> => {
+    const response = await apiClient.post('/auth/login', credentials);
+    return {
+      data: {
+        data: response.data as { user: User; token: string },
+        success: true,
+        message: 'Успешный вход'
+      }
+    };
   },
 
-  register: (credentials: RegisterCredentials): Promise<{ data: ApiResponse<{ user: User; token: string }> }> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (credentials.email && credentials.password) {
-          resolve({
-            data: {
-              data: {
-                user: mockUser,
-                token: 'mock-jwt-token-12345'
-              },
-              success: true,
-              message: 'Успешная регистрация'
-            }
-          });
-        } else {
-          reject({
-            response: {
-              data: {
-                message: 'Некорректные данные'
-              }
-            }
-          });
-        }
-      }, 1000);
-    });
+  register: async (credentials: RegisterCredentials): Promise<{ data: ApiResponse<{ user: User; token: string }> }> => {
+    const response = await apiClient.post('/auth/register', credentials);
+    return {
+      data: {
+        data: response.data as { user: User; token: string },
+        success: true,
+        message: 'Успешная регистрация'
+      }
+    };
   },
 
-  getProfile: (): Promise<{ data: ApiResponse<User> }> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: {
-            data: mockUser,
-            success: true,
-            message: 'Профиль получен'
-          }
-        });
-      }, 500);
-    });
+  getProfile: async (): Promise<{ data: ApiResponse<User> }> => {
+    const response = await apiClient.get('/me');
+    return {
+      data: {
+        data: (response.data as any).user,
+        success: true,
+        message: 'Профиль получен'
+      }
+    };
   },
 
-  logout: (): Promise<{ data: ApiResponse<null> }> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: {
-            data: null,
-            success: true,
-            message: 'Успешный выход'
-          }
-        });
-      }, 500);
-    });
+  logout: async (): Promise<{ data: ApiResponse<null> }> => {
+    // Просто очищаем токен на клиенте
+    localStorage.removeItem('token');
+    return {
+      data: {
+        data: null,
+        success: true,
+        message: 'Успешный выход'
+      }
+    };
   },
 }; 

@@ -10,26 +10,32 @@ import (
 type Router struct {
 	authHandler     *handlers.AuthHandler
 	modelHandler    *handlers.ModelHandler
+	companyHandler  *handlers.CompanyHandler
 	budgetHandler   *handlers.BudgetHandler
 	currencyHandler *handlers.CurrencyHandler
 	tierHandler     *handlers.TierHandler
+	userHandler     *handlers.UserHandler
 	authMiddleware  *middleware.AuthMiddleware
 }
 
 func NewRouter(
 	authHandler *handlers.AuthHandler,
 	modelHandler *handlers.ModelHandler,
+	companyHandler *handlers.CompanyHandler,
 	budgetHandler *handlers.BudgetHandler,
 	currencyHandler *handlers.CurrencyHandler,
 	tierHandler *handlers.TierHandler,
+	userHandler *handlers.UserHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
 		authHandler:     authHandler,
 		modelHandler:    modelHandler,
+		companyHandler:  companyHandler,
 		budgetHandler:   budgetHandler,
 		currencyHandler: currencyHandler,
 		tierHandler:     tierHandler,
+		userHandler:     userHandler,
 		authMiddleware:  authMiddleware,
 	}
 }
@@ -137,6 +143,21 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		currencies.POST("/convert", r.currencyHandler.ConvertCurrency)
 	}
 
+	// Публичные маршруты для компаний
+	companies := api.Group("/companies")
+	{
+		companies.GET("", r.companyHandler.GetAllCompanies)
+		companies.GET("/:id", r.companyHandler.GetCompanyByID)
+		companies.GET("/:id/models", r.companyHandler.GetCompanyModels)
+	}
+
+	// Публичные маршруты для моделей
+	models := api.Group("/models")
+	{
+		models.GET("", r.modelHandler.GetAllModels)
+		models.GET("/:id", r.modelHandler.GetModelByID)
+	}
+
 	// Маршруты для тарифов
 	tiers := api.Group("/tiers")
 	{
@@ -146,10 +167,26 @@ func (r *Router) SetupRoutes() *gin.Engine {
 	// Защищенные маршруты для пользователей
 	users := protected.Group("/users")
 	{
+		// Тарифы и обновления тарифов
 		users.GET("/:user_id/tier", r.tierHandler.GetUserTier)
-		users.GET("/:user_id/spending", r.tierHandler.GetUserSpending)
-		users.POST("/:user_id/spending", r.tierHandler.UpdateUserSpending)
 		users.POST("/:user_id/tier/check", r.tierHandler.CheckAndUpgradeTier)
+		
+		// Данные из LiteLLM
+		users.GET("/:user_id/spending", r.userHandler.GetUserSpending)
+		users.GET("/:user_id/budget", r.userHandler.GetUserBudget)
+		users.PUT("/:user_id/budget", r.userHandler.UpdateUserBudget)
+		users.GET("/:user_id/usage-stats", r.userHandler.GetUsageStats)
+		users.GET("/:user_id/requests", r.userHandler.GetRequestHistory)
+		
+		// API ключи
+		users.GET("/:user_id/api-keys", r.userHandler.GetUserApiKeys)
+		users.POST("/:user_id/api-keys", r.userHandler.CreateUserApiKey)
+	}
+
+	// Маршруты для управления API ключами
+	apiKeys := protected.Group("/api-keys")
+	{
+		apiKeys.DELETE("/:key_id", r.userHandler.DeleteUserApiKey)
 	}
 
 	return router

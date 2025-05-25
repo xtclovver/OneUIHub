@@ -18,6 +18,7 @@ const (
 type User struct {
 	ID           string         `json:"id" gorm:"type:varchar(36);primaryKey"`
 	Email        string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Name         *string        `json:"name,omitempty" gorm:"type:varchar(255)"`
 	PasswordHash string         `json:"-" gorm:"type:varchar(255);not null"`
 	TierID       string         `json:"tier_id" gorm:"type:varchar(36);not null"`
 	Role         UserRole       `json:"role" gorm:"type:enum('customer','enterprise','support','admin');default:'customer'"`
