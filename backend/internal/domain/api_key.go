@@ -10,7 +10,7 @@ type ApiKey struct {
 	KeyHash    string     `json:"-" gorm:"type:varchar(255);not null"`
 	ExternalID string     `json:"external_id" gorm:"type:varchar(255)"`
 	Name       string     `json:"name" gorm:"type:varchar(255)"`
-	CreatedAt  time.Time  `json:"created_at"`
+	CreatedAt  time.Time  `json:"created_at" gorm:"autoCreateTime"`
 	ExpiresAt  *time.Time `json:"expires_at"`
 
 	// Связи

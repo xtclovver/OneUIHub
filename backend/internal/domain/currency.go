@@ -19,7 +19,7 @@ type ExchangeRate struct {
 	FromCurrency string    `json:"from_currency" gorm:"type:varchar(3);not null"`
 	ToCurrency   string    `json:"to_currency" gorm:"type:varchar(3);not null"`
 	Rate         float64   `json:"rate" gorm:"type:decimal(15,8);not null"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	From *Currency `json:"from,omitempty" gorm:"foreignKey:FromCurrency"`
@@ -34,7 +34,7 @@ func (ExchangeRate) TableName() string {
 type UserSpending struct {
 	UserID     string    `json:"user_id" gorm:"type:varchar(36);primaryKey"`
 	TotalSpent float64   `json:"total_spent" gorm:"type:decimal(10,2);not null;default:0.00"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID"`

@@ -250,12 +250,19 @@ const ModelsPage: React.FC = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {searchTerm || Object.keys(filters).length > 0 ? 'Модели не найдены' : 'Нет доступных моделей'}
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               {searchTerm || Object.keys(filters).length > 0 
                 ? 'Попробуйте изменить поисковый запрос или фильтры'
-                : 'Модели будут добавлены в ближайшее время'
+                : 'Модели должны быть синхронизированы администратором из админ-панели'
               }
             </p>
+            {!searchTerm && Object.keys(filters).length === 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                <p className="text-sm text-blue-700">
+                  <strong>Для администраторов:</strong> Перейдите в админ-панель → Управление моделями → Группы моделей → "Синхронизировать в БД"
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

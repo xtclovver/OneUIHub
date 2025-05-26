@@ -10,6 +10,7 @@ import {
   XCircleIcon,
   GlobeAltIcon,
   CpuChipIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import {
   createCompany,
@@ -18,6 +19,8 @@ import {
   syncCompaniesFromLiteLLM,
   formatDate,
   addModelToCompany,
+  getAllModels,
+  linkModelToCompany,
 } from '../../api/admin';
 import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
@@ -38,7 +41,9 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [showAddModelModal, setShowAddModelModal] = useState(false);
+  const [showLinkModelModal, setShowLinkModelModal] = useState(false);
   const [companyForModel, setCompanyForModel] = useState<Company | null>(null);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
 
   useEffect(() => {
     loadCompanies();
@@ -140,6 +145,35 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
       loadCompanies();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка при добавлении модели');
+    }
+  };
+
+  const loadAvailableModels = async () => {
+    try {
+      const response = await getAllModels();
+      setAvailableModels(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при загрузке моделей');
+    }
+  };
+
+  const openLinkModelModal = (company: Company) => {
+    setCompanyForModel(company);
+    setShowLinkModelModal(true);
+    loadAvailableModels();
+  };
+
+  const handleLinkModel = async (modelId: string) => {
+    if (!companyForModel) return;
+    
+    setError(null);
+    try {
+      await linkModelToCompany(modelId, companyForModel.id);
+      setShowLinkModelModal(false);
+      setCompanyForModel(null);
+      loadCompanies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при связывании модели');
     }
   };
 
@@ -258,6 +292,13 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
                     <CpuChipIcon className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => openLinkModelModal(company)}
+                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Связать существующую модель"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => openDeleteModal(company.id)}
                     className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                     title="Удалить"
@@ -358,6 +399,19 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
             setCompanyForModel(null);
           }}
           onSubmit={handleAddModel}
+        />
+      )}
+
+      {/* Модальное окно связывания существующей модели */}
+      {showLinkModelModal && companyForModel && (
+        <LinkModelModal
+          company={companyForModel}
+          availableModels={availableModels}
+          onClose={() => {
+            setShowLinkModelModal(false);
+            setCompanyForModel(null);
+          }}
+          onSubmit={handleLinkModel}
         />
       )}
     </div>
@@ -924,6 +978,131 @@ const AddModelModal: React.FC<{
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               Добавить модель
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Компонент для связывания существующей модели с компанией
+const LinkModelModal: React.FC<{
+  company: Company;
+  availableModels: any[];
+  onClose: () => void;
+  onSubmit: (modelId: string) => void;
+}> = ({ company, availableModels, onClose, onSubmit }) => {
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Фильтруем модели, которые еще не привязаны к этой компании
+  const filteredModels = availableModels.filter(model => 
+    model.company_id !== company.id &&
+    (model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     model.description?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedModelId) {
+      onSubmit(selectedModelId);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Связать модель с компанией "{company.name}"
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Поиск моделей */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Поиск моделей
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Введите название модели..."
+            />
+          </div>
+
+          {/* Список доступных моделей */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Выберите модель для связывания
+            </label>
+            <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-md">
+              {filteredModels.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  {searchTerm ? 'Модели не найдены' : 'Нет доступных моделей для связывания'}
+                </div>
+              ) : (
+                <div className="space-y-1 p-2">
+                  {filteredModels.map((model) => (
+                    <label
+                      key={model.id}
+                      className={`flex items-center p-3 rounded-md cursor-pointer hover:bg-gray-50 ${
+                        selectedModelId === model.id ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="selectedModel"
+                        value={model.id}
+                        checked={selectedModelId === model.id}
+                        onChange={(e) => setSelectedModelId(e.target.value)}
+                        className="mr-3"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-900">{model.name}</h4>
+                          {model.external_id && (
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {model.external_id}
+                            </span>
+                          )}
+                        </div>
+                        {model.description && (
+                          <p className="text-xs text-gray-600 mt-1">{model.description}</p>
+                        )}
+                        {model.company && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Текущая компания: {model.company.name}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={!selectedModelId}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Связать модель
             </button>
           </div>
         </form>

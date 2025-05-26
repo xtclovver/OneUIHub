@@ -290,28 +290,26 @@ export const formatDate = (dateString: string): string => {
 // API функции для компаний
 
 export const syncCompaniesFromLiteLLM = async (): Promise<void> => {
-  const response = await fetch('/api/v1/admin/companies/sync', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Ошибка при синхронизации компаний');
+  try {
+    await apiClient.post('/admin/companies/sync');
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при синхронизации компаний');
   }
 };
 
 export const syncModelsFromLiteLLM = async (): Promise<void> => {
-  const response = await fetch('/api/v1/admin/models/sync', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-  });
+  try {
+    await apiClient.post('/admin/models/sync');
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при синхронизации моделей');
+  }
+};
 
-  if (!response.ok) {
-    throw new Error('Ошибка при синхронизации моделей');
+export const syncModelsFromModelGroup = async (): Promise<void> => {
+  try {
+    await apiClient.post('/admin/models/sync-model-group');
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при синхронизации моделей из model group');
   }
 };
 
@@ -321,30 +319,10 @@ export const createCompany = async (data: {
   description?: string;
   external_id?: string;
 }): Promise<void> => {
-  const response = await fetch('/api/v1/admin/companies', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    let errorMessage = 'Ошибка при создании компании';
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.message || errorMessage;
-    } catch {
-      // Если не удалось парсить JSON, попробуем получить текст
-      try {
-        const errorText = await response.text();
-        errorMessage = errorText || `Ошибка при создании компании: ${response.status}`;
-      } catch {
-        errorMessage = `Ошибка при создании компании: ${response.status}`;
-      }
-    }
-    throw new Error(errorMessage);
+  try {
+    await apiClient.post('/admin/companies', data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при создании компании');
   }
 };
 
@@ -354,56 +332,18 @@ export const updateCompany = async (id: string, data: {
   description?: string;
   external_id?: string;
 }): Promise<void> => {
-  const response = await fetch(`/api/v1/admin/companies/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    let errorMessage = 'Ошибка при обновлении компании';
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.message || errorMessage;
-    } catch {
-      // Если не удалось парсить JSON, попробуем получить текст
-      try {
-        const errorText = await response.text();
-        errorMessage = errorText || `Ошибка при обновлении компании: ${response.status}`;
-      } catch {
-        errorMessage = `Ошибка при обновлении компании: ${response.status}`;
-      }
-    }
-    throw new Error(errorMessage);
+  try {
+    await apiClient.put(`/admin/companies/${id}`, data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при обновлении компании');
   }
 };
 
 export const deleteCompany = async (id: string): Promise<void> => {
-  const response = await fetch(`/api/v1/admin/companies/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-  });
-
-  if (!response.ok) {
-    let errorMessage = 'Ошибка при удалении компании';
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.message || errorMessage;
-    } catch {
-      // Если не удалось парсить JSON, попробуем получить текст
-      try {
-        const errorText = await response.text();
-        errorMessage = errorText || `Ошибка при удалении компании: ${response.status}`;
-      } catch {
-        errorMessage = `Ошибка при удалении компании: ${response.status}`;
-      }
-    }
-    throw new Error(errorMessage);
+  try {
+    await apiClient.delete(`/admin/companies/${id}`);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при удалении компании');
   }
 };
 
@@ -425,24 +365,33 @@ export const addModelToCompany = async (companyId: string, data: {
   is_free?: boolean;
   is_enabled?: boolean;
 }): Promise<void> => {
-  const response = await fetch(`/api/v1/admin/companies/${companyId}/models`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-    body: JSON.stringify(data),
-  });
+  try {
+    await apiClient.post('/admin/models', {
+      company_id: companyId,
+      name: data.name,
+      description: data.description,
+      features: data.features,
+    });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при добавлении модели к компании');
+  }
+};
 
-  if (!response.ok) {
-    const errorData = await response.text();
-    let errorMessage = 'Ошибка при добавлении модели к компании';
-    try {
-      const jsonError = JSON.parse(errorData);
-      errorMessage = jsonError.error || errorMessage;
-    } catch {
-      errorMessage = `Ошибка при добавлении модели к компании: ${response.status}`;
-    }
-    throw new Error(errorMessage);
+export const getAllModels = async (): Promise<{ data: any[] }> => {
+  try {
+    const response = await apiClient.get<{ data: any[] }>('/admin/models');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при получении списка моделей');
+  }
+};
+
+export const linkModelToCompany = async (modelId: string, companyId: string): Promise<void> => {
+  try {
+    await apiClient.put(`/admin/models/${modelId}`, {
+      company_id: companyId,
+    });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при связывании модели с компанией');
   }
 }; 

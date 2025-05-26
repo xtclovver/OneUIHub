@@ -104,6 +104,11 @@ func (h *ModelHandler) GetAllModels(c *gin.Context) {
 	if isEnabledStr != "" {
 		val := isEnabledStr == "true"
 		isEnabled = &val
+	} else {
+		// Для обычных пользователей по умолчанию показываем только включенные модели
+		// если явно не указан другой фильтр
+		val := true
+		isEnabled = &val
 	}
 
 	models, err := h.modelService.GetAllModelsWithFilters(c.Request.Context(), companyID, isFree, isEnabled, search)

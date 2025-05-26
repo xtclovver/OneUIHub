@@ -13,8 +13,8 @@ type Budget struct {
 	BudgetDuration string     `json:"budget_duration" gorm:"type:varchar(50);default:'monthly'"`
 	ResetAt        *time.Time `json:"reset_at"`
 	ExternalID     string     `json:"external_id" gorm:"type:varchar(255);uniqueIndex"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	CreatedAt      time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID"`

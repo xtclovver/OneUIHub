@@ -11,7 +11,7 @@ type Tier struct {
 	IsFree      bool   `json:"is_free" gorm:"default:false"`
 	// Price - сумма в USD, которую нужно потратить для перехода на этот тариф
 	Price     float64   `json:"price" gorm:"type:decimal(10,2);default:0.00"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 
 	// Связи
 	Users      []User      `json:"users,omitempty" gorm:"foreignKey:TierID"`

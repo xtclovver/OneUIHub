@@ -13,7 +13,7 @@ type Request struct {
 	InputCost    float64   `json:"input_cost" gorm:"type:decimal(10,6);not null"`
 	OutputCost   float64   `json:"output_cost" gorm:"type:decimal(10,6);not null"`
 	TotalCost    float64   `json:"total_cost" gorm:"type:decimal(10,6);not null"`
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 
 	// Связи
 	User  *User  `json:"user,omitempty" gorm:"foreignKey:UserID"`

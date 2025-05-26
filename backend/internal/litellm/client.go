@@ -41,8 +41,8 @@ type LiteLLMModelGroupResponse struct {
 type LiteLLMModelGroup struct {
 	ModelGroup                       string   `json:"model_group"`
 	Providers                        []string `json:"providers"`
-	MaxInputTokens                   int      `json:"max_input_tokens"`
-	MaxOutputTokens                  int      `json:"max_output_tokens"`
+	MaxInputTokens                   float64  `json:"max_input_tokens"`
+	MaxOutputTokens                  float64  `json:"max_output_tokens"`
 	InputCostPerToken                float64  `json:"input_cost_per_token"`
 	OutputCostPerToken               float64  `json:"output_cost_per_token"`
 	Mode                             string   `json:"mode"`

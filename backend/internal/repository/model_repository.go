@@ -117,7 +117,12 @@ func (r *modelRepository) ListWithFilters(ctx context.Context, companyID string,
 		}
 
 		if isEnabled != nil {
-			query = query.Where("model_configs.is_enabled = ?", *isEnabled)
+			// Для is_enabled также учитываем модели без конфигурации как включенные по умолчанию
+			if *isEnabled {
+				query = query.Where("model_configs.is_enabled = ? OR model_configs.is_enabled IS NULL", *isEnabled)
+			} else {
+				query = query.Where("model_configs.is_enabled = ?", *isEnabled)
+			}
 		}
 	}
 

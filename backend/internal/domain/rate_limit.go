@@ -12,8 +12,8 @@ type RateLimit struct {
 	RequestsPerDay    int       `json:"requests_per_day" gorm:"default:0"`
 	TokensPerMinute   int       `json:"tokens_per_minute" gorm:"default:0"`
 	TokensPerDay      int       `json:"tokens_per_day" gorm:"default:0"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	CreatedAt         time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt         time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	Model *Model `json:"model,omitempty" gorm:"foreignKey:ModelID"`

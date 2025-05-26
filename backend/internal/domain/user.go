@@ -16,18 +16,20 @@ const (
 type User struct {
 	ID           string    `json:"id" gorm:"type:varchar(36);primaryKey"`
 	Email        string    `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	Name         *string   `json:"name,omitempty" gorm:"type:varchar(255)"`
+	Name         *string   `json:"name" gorm:"type:varchar(255)"`
 	PasswordHash string    `json:"-" gorm:"type:varchar(255);not null"`
 	TierID       string    `json:"tier_id" gorm:"type:varchar(36);not null"`
 	Role         UserRole  `json:"role" gorm:"type:enum('customer','enterprise','support','admin');default:'customer'"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
-	Tier      *Tier      `json:"tier,omitempty" gorm:"foreignKey:TierID"`
-	UserLimit *UserLimit `json:"user_limit,omitempty" gorm:"foreignKey:UserID"`
-	ApiKeys   []ApiKey   `json:"api_keys,omitempty" gorm:"foreignKey:UserID"`
-	Requests  []Request  `json:"requests,omitempty" gorm:"foreignKey:UserID"`
+	Tier         *Tier         `json:"tier,omitempty" gorm:"foreignKey:TierID"`
+	UserLimit    *UserLimit    `json:"user_limit,omitempty" gorm:"foreignKey:UserID"`
+	UserSpending *UserSpending `json:"user_spending,omitempty" gorm:"foreignKey:UserID"`
+	ApiKeys      []ApiKey      `json:"api_keys,omitempty" gorm:"foreignKey:UserID"`
+	Requests     []Request     `json:"requests,omitempty" gorm:"foreignKey:UserID"`
+	Budgets      []Budget      `json:"budgets,omitempty" gorm:"foreignKey:UserID"`
 }
 
 func (User) TableName() string {
@@ -35,9 +37,9 @@ func (User) TableName() string {
 }
 
 type UserLimit struct {
-	UserID            string  `json:"user_id" gorm:"type:varchar(36);primaryKey"`
-	MonthlyTokenLimit *int64  `json:"monthly_token_limit" gorm:"type:bigint"`
-	Balance           float64 `json:"balance" gorm:"type:decimal(10,2);default:0.00"`
+	UserID            string   `json:"user_id" gorm:"type:varchar(36);primaryKey"`
+	MonthlyTokenLimit *int64   `json:"monthly_token_limit" gorm:"type:bigint"`
+	Balance           *float64 `json:"balance" gorm:"type:decimal(10,2);default:0.00"`
 
 	// Связи
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID"`

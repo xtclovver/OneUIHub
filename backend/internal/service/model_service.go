@@ -159,14 +159,18 @@ func (s *modelService) convertModelGroupToModel(modelGroup litellm.LiteLLMModelG
 	providersJSON, _ := json.Marshal(modelGroup.Providers)
 	openaiParamsJSON, _ := json.Marshal(modelGroup.SupportedOpenAIParams)
 
+	// Конвертируем float64 в int для токенов
+	maxInputTokens := int(modelGroup.MaxInputTokens)
+	maxOutputTokens := int(modelGroup.MaxOutputTokens)
+
 	return &domain.Model{
 		CompanyID:                       companyID,
 		Name:                            modelGroup.ModelGroup,
 		ExternalID:                      modelGroup.ModelGroup,
 		Description:                     fmt.Sprintf("Модель %s поддерживает режим %s", modelGroup.ModelGroup, modelGroup.Mode),
 		Providers:                       string(providersJSON),
-		MaxInputTokens:                  &modelGroup.MaxInputTokens,
-		MaxOutputTokens:                 &modelGroup.MaxOutputTokens,
+		MaxInputTokens:                  &maxInputTokens,
+		MaxOutputTokens:                 &maxOutputTokens,
 		Mode:                            modelGroup.Mode,
 		SupportsParallelFunctionCalling: modelGroup.SupportsParallelFunctionCalling,
 		SupportsVision:                  modelGroup.SupportsVision,

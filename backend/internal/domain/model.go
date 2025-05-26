@@ -22,10 +22,10 @@ type Model struct {
 	SupportsWebSearch               bool   `json:"supports_web_search" gorm:"default:false"`
 	SupportsReasoning               bool   `json:"supports_reasoning" gorm:"default:false"`
 	SupportsFunctionCalling         bool   `json:"supports_function_calling" gorm:"default:false"`
-	SupportedOpenAIParams           string `json:"supported_openai_params" gorm:"type:text"` // JSON массив
+	SupportedOpenAIParams           string `json:"supported_openai_params" gorm:"type:text;column:supported_openai_params"` // JSON массив
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	Company     *Company     `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
@@ -45,8 +45,8 @@ type ModelConfig struct {
 	IsEnabled       bool      `json:"is_enabled" gorm:"default:true"`
 	InputTokenCost  *float64  `json:"input_token_cost" gorm:"type:decimal(10,6)"`
 	OutputTokenCost *float64  `json:"output_token_cost" gorm:"type:decimal(10,6)"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Связи
 	Model *Model `json:"model,omitempty" gorm:"foreignKey:ModelID"`
