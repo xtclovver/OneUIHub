@@ -43,6 +43,7 @@ type ModelRepository interface {
 	Update(ctx context.Context, model *domain.Model) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, limit, offset int) ([]*domain.Model, error)
+	ListWithFilters(ctx context.Context, companyID string, isFree *bool, isEnabled *bool, search string, limit, offset int) ([]*domain.Model, error)
 }
 
 type ModelConfigRepository interface {

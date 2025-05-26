@@ -184,4 +184,28 @@ export interface UpdateUserKeyRequest {
   tpm_limit?: number;
   rpm_limit?: number;
   metadata?: Record<string, any>;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  logo_url?: string;
+  description?: string;
+  external_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCompanyRequest {
+  name: string;
+  logo_url?: string;
+  description?: string;
+  external_id?: string;
+}
+
+export interface UpdateCompanyRequest {
+  name?: string;
+  logo_url?: string;
+  description?: string;
+  external_id?: string;
 } 

@@ -13,6 +13,8 @@ import { AdminStats } from '../../types/admin';
 import ModelsManagement from '../../components/admin/ModelsManagement';
 import UsersManagement from '../../components/admin/UsersManagement';
 import Analytics from '../../components/admin/Analytics';
+import CompaniesManagement from '../../components/admin/CompaniesManagement';
+import SettingsManagement from '../../components/admin/SettingsManagement';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -262,11 +264,7 @@ const AdminPage: React.FC = () => {
           {activeTab === 'users' && <UsersManagement />}
           {activeTab === 'analytics' && <Analytics />}
 
-          {activeTab === 'companies' && renderPlaceholder(
-            'Управление компаниями',
-            'Здесь будет интерфейс для управления AI компаниями',
-            BuildingOfficeIcon
-          )}
+          {activeTab === 'companies' && <CompaniesManagement />}
 
           {activeTab === 'billing' && renderPlaceholder(
             'Биллинг и платежи',
@@ -274,11 +272,7 @@ const AdminPage: React.FC = () => {
             CurrencyDollarIcon
           )}
 
-          {activeTab === 'settings' && renderPlaceholder(
-            'Настройки',
-            'Здесь будут системные настройки',
-            Cog6ToothIcon
-          )}
+          {activeTab === 'settings' && <SettingsManagement />}
         </div>
       </div>
     </div>

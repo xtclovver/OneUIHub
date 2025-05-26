@@ -2,8 +2,6 @@ package domain
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Model struct {
@@ -26,9 +24,8 @@ type Model struct {
 	SupportsFunctionCalling         bool   `json:"supports_function_calling" gorm:"default:false"`
 	SupportedOpenAIParams           string `json:"supported_openai_params" gorm:"type:text"` // JSON массив
 
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	// Связи
 	Company     *Company     `json:"company,omitempty" gorm:"foreignKey:CompanyID"`
@@ -42,15 +39,14 @@ func (Model) TableName() string {
 }
 
 type ModelConfig struct {
-	ID              string         `json:"id" gorm:"type:varchar(36);primaryKey"`
-	ModelID         string         `json:"model_id" gorm:"type:varchar(36);not null"`
-	IsFree          bool           `json:"is_free" gorm:"default:false"`
-	IsEnabled       bool           `json:"is_enabled" gorm:"default:true"`
-	InputTokenCost  *float64       `json:"input_token_cost" gorm:"type:decimal(10,6)"`
-	OutputTokenCost *float64       `json:"output_token_cost" gorm:"type:decimal(10,6)"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
+	ID              string    `json:"id" gorm:"type:varchar(36);primaryKey"`
+	ModelID         string    `json:"model_id" gorm:"type:varchar(36);not null"`
+	IsFree          bool      `json:"is_free" gorm:"default:false"`
+	IsEnabled       bool      `json:"is_enabled" gorm:"default:true"`
+	InputTokenCost  *float64  `json:"input_token_cost" gorm:"type:decimal(10,6)"`
+	OutputTokenCost *float64  `json:"output_token_cost" gorm:"type:decimal(10,6)"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 
 	// Связи
 	Model *Model `json:"model,omitempty" gorm:"foreignKey:ModelID"`

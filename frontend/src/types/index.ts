@@ -28,7 +28,7 @@ export interface Company {
   external_id: string;
   created_at: string;
   updated_at: string;
-  modelsCount?: number;
+  models_count?: number;
 }
 
 // Model types

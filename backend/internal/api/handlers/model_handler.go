@@ -87,7 +87,26 @@ func (h *ModelHandler) GetModelGroupInfo(c *gin.Context) {
 
 // CRUD операции для моделей в БД
 func (h *ModelHandler) GetAllModels(c *gin.Context) {
-	models, err := h.modelService.GetAllModels(c.Request.Context())
+	// Получаем параметры фильтрации из запроса
+	companyID := c.Query("company_id")
+	isFreeStr := c.Query("is_free")
+	isEnabledStr := c.Query("is_enabled")
+	search := c.Query("search")
+
+	// Конвертируем строковые параметры в булевы
+	var isFree *bool
+	if isFreeStr != "" {
+		val := isFreeStr == "true"
+		isFree = &val
+	}
+
+	var isEnabled *bool
+	if isEnabledStr != "" {
+		val := isEnabledStr == "true"
+		isEnabled = &val
+	}
+
+	models, err := h.modelService.GetAllModelsWithFilters(c.Request.Context(), companyID, isFree, isEnabled, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

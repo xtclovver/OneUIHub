@@ -93,3 +93,43 @@ func (r *modelRepository) List(ctx context.Context, limit, offset int) ([]*domai
 	}
 	return models, nil
 }
+
+func (r *modelRepository) ListWithFilters(ctx context.Context, companyID string, isFree *bool, isEnabled *bool, search string, limit, offset int) ([]*domain.Model, error) {
+	var models []*domain.Model
+	query := r.db.WithContext(ctx).Preload("Company").Preload("ModelConfig")
+
+	// Фильтр по компании
+	if companyID != "" {
+		query = query.Where("company_id = ?", companyID)
+	}
+
+	// Фильтр по поиску (поиск по названию и описанию)
+	if search != "" {
+		query = query.Where("name ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	// Фильтры по конфигурации модели (через JOIN)
+	if isFree != nil || isEnabled != nil {
+		query = query.Joins("LEFT JOIN model_configs ON models.id = model_configs.model_id")
+
+		if isFree != nil {
+			query = query.Where("model_configs.is_free = ?", *isFree)
+		}
+
+		if isEnabled != nil {
+			query = query.Where("model_configs.is_enabled = ?", *isEnabled)
+		}
+	}
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&models).Error; err != nil {
+		return nil, fmt.Errorf("failed to list models with filters: %w", err)
+	}
+	return models, nil
+}

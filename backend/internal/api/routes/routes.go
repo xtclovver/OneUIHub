@@ -15,7 +15,8 @@ type Router struct {
 	currencyHandler *handlers.CurrencyHandler
 	tierHandler     *handlers.TierHandler
 	userHandler     *handlers.UserHandler
-	authMiddleware  *middleware.AuthMiddleware
+	// settingsHandler *handlers.SettingsHandler
+	authMiddleware *middleware.AuthMiddleware
 }
 
 func NewRouter(
@@ -26,6 +27,7 @@ func NewRouter(
 	currencyHandler *handlers.CurrencyHandler,
 	tierHandler *handlers.TierHandler,
 	userHandler *handlers.UserHandler,
+	// settingsHandler *handlers.SettingsHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
@@ -36,7 +38,8 @@ func NewRouter(
 		currencyHandler: currencyHandler,
 		tierHandler:     tierHandler,
 		userHandler:     userHandler,
-		authMiddleware:  authMiddleware,
+		// settingsHandler: settingsHandler,
+		authMiddleware: authMiddleware,
 	}
 }
 
@@ -133,6 +136,28 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			budgets.PUT("/litellm", r.budgetHandler.UpdateLiteLLMBudget)
 			budgets.DELETE("/litellm/:budget_id", r.budgetHandler.DeleteLiteLLMBudget)
 		}
+
+		// Маршруты для управления компаниями
+		companies := admin.Group("/companies")
+		{
+			// Синхронизация с LiteLLM
+			companies.POST("/sync", r.companyHandler.SyncCompaniesFromLiteLLM)
+
+			// CRUD операции для компаний
+			companies.POST("", r.companyHandler.CreateCompany)
+			companies.PUT("/:id", r.companyHandler.UpdateCompany)
+			companies.DELETE("/:id", r.companyHandler.DeleteCompany)
+		}
+
+		// Маршруты для управления настройками
+		// settings := admin.Group("/settings")
+		// {
+		// 	settings.GET("", r.settingsHandler.GetAllSettings)
+		// 	settings.GET("/category/:category", r.settingsHandler.GetSettingsByCategory)
+		// 	settings.GET("/:key", r.settingsHandler.GetSetting)
+		// 	settings.PUT("", r.settingsHandler.UpdateSettings)
+		// 	settings.PUT("/:key", r.settingsHandler.UpdateSetting)
+		// }
 	}
 
 	// Публичные маршруты для валют
@@ -170,14 +195,14 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		// Тарифы и обновления тарифов
 		users.GET("/:user_id/tier", r.tierHandler.GetUserTier)
 		users.POST("/:user_id/tier/check", r.tierHandler.CheckAndUpgradeTier)
-		
+
 		// Данные из LiteLLM
 		users.GET("/:user_id/spending", r.userHandler.GetUserSpending)
 		users.GET("/:user_id/budget", r.userHandler.GetUserBudget)
 		users.PUT("/:user_id/budget", r.userHandler.UpdateUserBudget)
 		users.GET("/:user_id/usage-stats", r.userHandler.GetUsageStats)
 		users.GET("/:user_id/requests", r.userHandler.GetRequestHistory)
-		
+
 		// API ключи
 		users.GET("/:user_id/api-keys", r.userHandler.GetUserApiKeys)
 		users.POST("/:user_id/api-keys", r.userHandler.CreateUserApiKey)

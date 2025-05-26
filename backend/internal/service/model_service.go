@@ -19,6 +19,7 @@ type ModelService interface {
 
 	// CRUD операции для моделей
 	GetAllModels(ctx context.Context) ([]*domain.Model, error)
+	GetAllModelsWithFilters(ctx context.Context, companyID string, isFree *bool, isEnabled *bool, search string) ([]*domain.Model, error)
 	GetModelByID(ctx context.Context, id string) (*domain.Model, error)
 	CreateModel(ctx context.Context, model *domain.Model) error
 	UpdateModel(ctx context.Context, model *domain.Model) error
@@ -28,6 +29,10 @@ type ModelService interface {
 	GetAllCompanies(ctx context.Context) ([]*domain.Company, error)
 	GetCompanyByID(ctx context.Context, id string) (*domain.Company, error)
 	GetModelsByCompanyID(ctx context.Context, companyID string) ([]*domain.Model, error)
+	CreateCompany(ctx context.Context, name, logoURL, description, externalID string) (*domain.Company, error)
+	UpdateCompany(ctx context.Context, id, name, logoURL, description, externalID string) (*domain.Company, error)
+	DeleteCompany(ctx context.Context, id string) error
+	SyncCompaniesFromLiteLLM(ctx context.Context) error
 
 	// Управление моделями в LiteLLM
 	CreateLiteLLMModel(ctx context.Context, req *litellm.LiteLLMModelRequest) error
@@ -206,6 +211,10 @@ func (s *modelService) GetAllModels(ctx context.Context) ([]*domain.Model, error
 	return s.modelRepo.List(ctx, 1000, 0) // Получаем до 1000 моделей
 }
 
+func (s *modelService) GetAllModelsWithFilters(ctx context.Context, companyID string, isFree *bool, isEnabled *bool, search string) ([]*domain.Model, error) {
+	return s.modelRepo.ListWithFilters(ctx, companyID, isFree, isEnabled, search, 1000, 0)
+}
+
 func (s *modelService) GetModelByID(ctx context.Context, id string) (*domain.Model, error) {
 	return s.modelRepo.GetByID(ctx, id)
 }
@@ -342,4 +351,107 @@ func (s *modelService) GetCompanyByID(ctx context.Context, id string) (*domain.C
 
 func (s *modelService) GetModelsByCompanyID(ctx context.Context, companyID string) ([]*domain.Model, error) {
 	return s.modelRepo.GetByCompanyID(ctx, companyID, 1000, 0) // Получаем до 1000 моделей
+}
+
+// Административные методы для компаний
+
+func (s *modelService) CreateCompany(ctx context.Context, name, logoURL, description, externalID string) (*domain.Company, error) {
+	company := &domain.Company{
+		ID:          uuid.New().String(),
+		Name:        name,
+		LogoURL:     logoURL,
+		Description: description,
+		ExternalID:  externalID,
+	}
+
+	if err := s.companyRepo.Create(ctx, company); err != nil {
+		return nil, fmt.Errorf("failed to create company: %w", err)
+	}
+
+	return company, nil
+}
+
+func (s *modelService) UpdateCompany(ctx context.Context, id, name, logoURL, description, externalID string) (*domain.Company, error) {
+	company, err := s.companyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get company: %w", err)
+	}
+
+	if name != "" {
+		company.Name = name
+	}
+	if logoURL != "" {
+		company.LogoURL = logoURL
+	}
+	if description != "" {
+		company.Description = description
+	}
+	if externalID != "" {
+		company.ExternalID = externalID
+	}
+
+	if err := s.companyRepo.Update(ctx, company); err != nil {
+		return nil, fmt.Errorf("failed to update company: %w", err)
+	}
+
+	return company, nil
+}
+
+func (s *modelService) DeleteCompany(ctx context.Context, id string) error {
+	// Проверяем, есть ли модели у этой компании
+	models, err := s.modelRepo.GetByCompanyID(ctx, id, 1, 0)
+	if err != nil {
+		return fmt.Errorf("failed to check company models: %w", err)
+	}
+
+	if len(models) > 0 {
+		return fmt.Errorf("cannot delete company with existing models")
+	}
+
+	if err := s.companyRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete company: %w", err)
+	}
+
+	return nil
+}
+
+func (s *modelService) SyncCompaniesFromLiteLLM(ctx context.Context) error {
+	// Получаем информацию о группах моделей из LiteLLM
+	modelGroupResponse, err := s.litellmClient.GetModelGroupInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get model group info from LiteLLM: %w", err)
+	}
+
+	// Извлекаем уникальные провайдеры
+	providerMap := make(map[string]bool)
+	for _, group := range modelGroupResponse.Data {
+		for _, provider := range group.Providers {
+			providerMap[provider] = true
+		}
+	}
+
+	// Создаем или обновляем компании для каждого провайдера
+	for provider := range providerMap {
+		existingCompany, err := s.companyRepo.GetByExternalID(ctx, provider)
+		if err != nil && err != repository.ErrNotFound {
+			return fmt.Errorf("failed to check company existence: %w", err)
+		}
+
+		if existingCompany == nil {
+			// Создаем новую компанию
+			company := &domain.Company{
+				ID:          uuid.New().String(),
+				Name:        provider,
+				ExternalID:  provider,
+				Description: fmt.Sprintf("AI провайдер %s", provider),
+			}
+
+			if err := s.companyRepo.Create(ctx, company); err != nil {
+				return fmt.Errorf("failed to create company %s: %w", provider, err)
+			}
+		}
+		// Если компания уже существует, ничего не делаем
+	}
+
+	return nil
 }

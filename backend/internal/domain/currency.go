@@ -2,8 +2,6 @@ package domain
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Currency struct {
@@ -17,12 +15,11 @@ func (Currency) TableName() string {
 }
 
 type ExchangeRate struct {
-	ID           string         `json:"id" gorm:"type:varchar(36);primaryKey"`
-	FromCurrency string         `json:"from_currency" gorm:"type:varchar(3);not null"`
-	ToCurrency   string         `json:"to_currency" gorm:"type:varchar(3);not null"`
-	Rate         float64        `json:"rate" gorm:"type:decimal(15,8);not null"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
+	ID           string    `json:"id" gorm:"type:varchar(36);primaryKey"`
+	FromCurrency string    `json:"from_currency" gorm:"type:varchar(3);not null"`
+	ToCurrency   string    `json:"to_currency" gorm:"type:varchar(3);not null"`
+	Rate         float64   `json:"rate" gorm:"type:decimal(15,8);not null"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
 	// Связи
 	From *Currency `json:"from,omitempty" gorm:"foreignKey:FromCurrency"`

@@ -33,14 +33,7 @@ export const modelsAPI = {
   },
 
   getRateLimits: (): Promise<{ data: ApiResponse<RateLimit[]> }> => {
-    // TODO: Добавить эндпоинт для лимитов в бэкенд
-    return Promise.resolve({
-      data: {
-        data: [],
-        success: true,
-        message: 'Лимиты загружены'
-      }
-    });
+    return apiClient.get<ApiResponse<RateLimit[]>>('/rate-limits');
   },
 
   getTiers: (): Promise<{ data: ApiResponse<Tier[]> }> => {

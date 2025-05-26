@@ -62,7 +62,10 @@ func (r *companyRepository) Delete(ctx context.Context, id string) error {
 
 func (r *companyRepository) List(ctx context.Context, limit, offset int) ([]*domain.Company, error) {
 	var companies []*domain.Company
-	query := r.db.WithContext(ctx)
+	query := r.db.WithContext(ctx).
+		Select("companies.*, COUNT(models.id) as models_count").
+		Joins("LEFT JOIN models ON companies.id = models.company_id").
+		Group("companies.id")
 
 	if limit > 0 {
 		query = query.Limit(limit)

@@ -375,6 +375,320 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
           </div>
         </div>
       )}
+
+      {/* Модальное окно создания модели */}
+      {showCreateModal && (
+        <CreateModelModal
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateModel}
+        />
+      )}
+
+      {/* Модальное окно редактирования модели */}
+      {showEditModal && selectedModel && (
+        <EditModelModal
+          model={selectedModel}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedModel(null);
+          }}
+          onSubmit={handleUpdateModel}
+        />
+      )}
+
+      {/* Модальное окно деталей модели */}
+      {showDetailsModal && selectedModel && (
+        <ModelDetailsModal
+          model={selectedModel}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedModel(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Компонент для создания модели
+const CreateModelModal: React.FC<{
+  onClose: () => void;
+  onSubmit: (data: CreateModelRequest) => void;
+}> = ({ onClose, onSubmit }) => {
+  const [formData, setFormData] = useState<CreateModelRequest>({
+    model_name: '',
+    litellm_params: {},
+    model_info: {},
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Создать модель</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Название модели
+            </label>
+            <input
+              type="text"
+              value={formData.model_name}
+              onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              LiteLLM параметры (JSON)
+            </label>
+            <textarea
+              value={JSON.stringify(formData.litellm_params, null, 2)}
+              onChange={(e) => {
+                try {
+                  const params = JSON.parse(e.target.value);
+                  setFormData(prev => ({ ...prev, litellm_params: params }));
+                } catch {
+                  // Ignore JSON parse errors while typing
+                }
+              }}
+              rows={8}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder='{"custom_llm_provider": "anthropic", "model": "claude-3-sonnet-20240229"}'
+            />
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Создать
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Компонент для редактирования модели
+const EditModelModal: React.FC<{
+  model: LiteLLMModel;
+  onClose: () => void;
+  onSubmit: (data: UpdateModelRequest) => void;
+}> = ({ model, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState<UpdateModelRequest>({
+    model_id: model.model_info.id,
+    model_name: model.model_name,
+    model_info: {
+      input_cost_per_token: model.model_info.input_cost_per_token,
+      output_cost_per_token: model.model_info.output_cost_per_token,
+      max_tokens: model.model_info.max_tokens,
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Редактировать модель</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Название модели
+            </label>
+            <input
+              type="text"
+              value={formData.model_name || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Стоимость входных токенов
+              </label>
+              <input
+                type="number"
+                step="0.000001"
+                value={formData.model_info?.input_cost_per_token || ''}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  model_info: { 
+                    ...prev.model_info, 
+                    input_cost_per_token: parseFloat(e.target.value) 
+                  } 
+                }))}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Стоимость выходных токенов
+              </label>
+              <input
+                type="number"
+                step="0.000001"
+                value={formData.model_info?.output_cost_per_token || ''}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  model_info: { 
+                    ...prev.model_info, 
+                    output_cost_per_token: parseFloat(e.target.value) 
+                  } 
+                }))}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Максимум токенов
+              </label>
+              <input
+                type="number"
+                value={formData.model_info?.max_tokens || ''}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  model_info: { 
+                    ...prev.model_info, 
+                    max_tokens: parseInt(e.target.value) 
+                  } 
+                }))}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Сохранить
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Компонент для просмотра деталей модели
+const ModelDetailsModal: React.FC<{
+  model: LiteLLMModel;
+  onClose: () => void;
+}> = ({ model, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Детали модели</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <div className="space-y-6">
+          {/* Основная информация */}
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-3">{model.model_name}</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm font-medium text-gray-500">ID модели:</span>
+                <p className="text-sm text-gray-900">{model.model_info.id}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Провайдер:</span>
+                <p className="text-sm text-gray-900">{model.model_info.litellm_provider}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Стоимость */}
+          <div>
+            <h5 className="text-md font-medium text-gray-900 mb-2">Стоимость</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-sm font-medium text-gray-500">Входные токены:</span>
+                <p className="text-sm text-gray-900">${model.model_info.input_cost_per_token}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Выходные токены:</span>
+                <p className="text-sm text-gray-900">${model.model_info.output_cost_per_token}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Лимиты */}
+          {model.model_info.max_tokens && (
+            <div>
+              <h5 className="text-md font-medium text-gray-900 mb-2">Лимиты</h5>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Максимум токенов:</span>
+                <p className="text-sm text-gray-900">{model.model_info.max_tokens.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+
+          {/* LiteLLM параметры */}
+          <div>
+            <h5 className="text-md font-medium text-gray-900 mb-2">LiteLLM параметры</h5>
+            <pre className="bg-gray-100 p-3 rounded-md text-xs overflow-x-auto">
+              {JSON.stringify(model.litellm_params, null, 2)}
+            </pre>
+          </div>
+        </div>
+        
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Закрыть
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

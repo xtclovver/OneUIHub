@@ -55,7 +55,7 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company, index = 0 }) => {
           <div className="flex items-center justify-center space-x-4 mb-4">
             <div className="flex items-center space-x-1 text-gray-500">
               <CpuChipIcon className="w-4 h-4" />
-              <span className="text-sm">{company.modelsCount || 0} моделей</span>
+              <span className="text-sm">{company.models_count || 0} моделей</span>
             </div>
           </div>
 
