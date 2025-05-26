@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -41,8 +43,22 @@ type LiteLLMConfig struct {
 }
 
 func Load() (*Config, error) {
+	// Получаем путь к корню backend директории
+	_, filename, _, _ := runtime.Caller(0)
+	backendRoot := filepath.Join(filepath.Dir(filename), "..", "..")
+	envPath := filepath.Join(backendRoot, ".env")
+
 	// Загружаем .env файл, если он существует
-	_ = godotenv.Load()
+	if _, err := os.Stat(envPath); err == nil {
+		if err := godotenv.Load(envPath); err != nil {
+			// Логируем ошибку, но не прерываем выполнение
+			// Можем работать с переменными окружения системы
+			println("Warning: failed to load .env file:", err.Error())
+		}
+	} else {
+		// Пробуем загрузить из текущей директории
+		_ = godotenv.Load()
+	}
 
 	config := &Config{
 		Server: ServerConfig{
@@ -98,4 +114,19 @@ func getIntEnv(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// Debug выводит информацию о загруженной конфигурации
+func (c *Config) Debug() {
+	println("=== Configuration Debug ===")
+	println("Server Host:", c.Server.Host)
+	println("Server Port:", c.Server.Port)
+	println("DB Host:", c.Database.Host)
+	println("DB Port:", c.Database.Port)
+	println("DB User:", c.Database.User)
+	println("DB Name:", c.Database.DBName)
+	println("DB Password:", c.Database.Password)
+	println("JWT Secret:", c.Auth.JWTSecret[:10]+"...")
+	println("LiteLLM Base URL:", c.LiteLLM.BaseURL)
+	println("===========================")
 }

@@ -21,6 +21,9 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Выводим отладочную информацию о конфигурации
+	//cfg.Debug()
+
 	// Подключаемся к базе данных
 	db, err := database.NewConnection(cfg)
 	if err != nil {
