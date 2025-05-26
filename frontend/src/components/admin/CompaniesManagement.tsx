@@ -11,13 +11,13 @@ import {
   GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import {
-  getCompanies,
   createCompany,
   updateCompany,
   deleteCompany,
   syncCompaniesFromLiteLLM,
   formatDate,
 } from '../../api/admin';
+import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
 
 interface CompaniesManagementProps {
@@ -44,8 +44,8 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
     setLoading(true);
     setError(null);
     try {
-      const response = await getCompanies();
-      setCompanies(response.data);
+      const response = await companiesAPI.getAll();
+      setCompanies(response.data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Произошла ошибка');
     } finally {

@@ -288,20 +288,6 @@ export const formatDate = (dateString: string): string => {
 };
 
 // API функции для компаний
-export const getCompanies = async (): Promise<{ data: Company[] }> => {
-  const response = await fetch('/api/v1/companies', {
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Ошибка при получении списка компаний');
-  }
-
-  const result = await response.json();
-  return result;
-};
 
 export const syncCompaniesFromLiteLLM = async (): Promise<void> => {
   const response = await fetch('/api/v1/admin/companies/sync', {

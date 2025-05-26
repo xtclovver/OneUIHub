@@ -144,6 +144,8 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			companies.POST("/sync", r.companyHandler.SyncCompaniesFromLiteLLM)
 
 			// CRUD операции для компаний
+			companies.GET("", r.companyHandler.GetAllCompanies)
+			companies.GET("/:id", r.companyHandler.GetCompanyByID)
 			companies.POST("", r.companyHandler.CreateCompany)
 			companies.PUT("/:id", r.companyHandler.UpdateCompany)
 			companies.DELETE("/:id", r.companyHandler.DeleteCompany)
