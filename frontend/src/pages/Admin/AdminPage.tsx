@@ -1,31 +1,203 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CpuChipIcon, 
   BuildingOfficeIcon, 
   CurrencyDollarIcon,
   UserGroupIcon,
   ChartBarIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import { getAdminStats, formatCurrency, formatNumber } from '../../api/admin';
+import { AdminStats } from '../../types/admin';
+import ModelsManagement from '../../components/admin/ModelsManagement';
+import UsersManagement from '../../components/admin/UsersManagement';
+import Analytics from '../../components/admin/Analytics';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const tabs = [
     { id: 'overview', label: 'Обзор', icon: ChartBarIcon },
     { id: 'models', label: 'Модели', icon: CpuChipIcon },
-    { id: 'companies', label: 'Компании', icon: BuildingOfficeIcon },
     { id: 'users', label: 'Пользователи', icon: UserGroupIcon },
+    { id: 'analytics', label: 'Аналитика', icon: ChartBarIcon },
+    { id: 'companies', label: 'Компании', icon: BuildingOfficeIcon },
     { id: 'billing', label: 'Биллинг', icon: CurrencyDollarIcon },
     { id: 'settings', label: 'Настройки', icon: Cog6ToothIcon },
   ];
 
-  const stats = [
-    { name: 'Всего пользователей', value: '1,234', change: '+12%', changeType: 'positive' },
-    { name: 'Активных моделей', value: '45', change: '+3', changeType: 'positive' },
-    { name: 'Запросов сегодня', value: '12,345', change: '+8%', changeType: 'positive' },
-    { name: 'Доход за месяц', value: '$5,678', change: '+15%', changeType: 'positive' },
-  ];
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      loadStats();
+    }
+  }, [activeTab]);
+
+  const loadStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const statsData = await getAdminStats();
+      setStats(statsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при загрузке статистики');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderOverview = () => (
+    <div>
+      {/* Статистика */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <UserGroupIcon className="h-8 w-8 text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Всего пользователей
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats ? formatNumber(stats.totalUsers) : '—'}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CpuChipIcon className="h-8 w-8 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Активных моделей
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats ? formatNumber(stats.activeModels) : '—'}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ChartBarIcon className="h-8 w-8 text-purple-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Запросов сегодня
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats ? formatNumber(stats.requestsToday) : '—'}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CurrencyDollarIcon className="h-8 w-8 text-yellow-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Общие расходы
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats ? formatCurrency(stats.totalSpend) : '—'}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Дополнительная статистика */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <dt className="text-sm font-medium text-gray-500 truncate">
+              Всего запросов
+            </dt>
+            <dd className="mt-1 text-3xl font-semibold text-gray-900">
+              {stats ? formatNumber(stats.totalRequests) : '—'}
+            </dd>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <dt className="text-sm font-medium text-gray-500 truncate">
+              Всего токенов
+            </dt>
+            <dd className="mt-1 text-3xl font-semibold text-gray-900">
+              {stats ? formatNumber(stats.totalTokens) : '—'}
+            </dd>
+          </div>
+        </div>
+      </div>
+
+      {/* Быстрые действия */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Быстрые действия</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button 
+            onClick={() => setActiveTab('models')}
+            className="bg-blue-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Управление моделями
+          </button>
+          <button 
+            onClick={() => setActiveTab('users')}
+            className="bg-green-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+          >
+            Управление пользователями
+          </button>
+          <button 
+            onClick={() => setActiveTab('analytics')}
+            className="bg-purple-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-purple-700 transition-colors"
+          >
+            Просмотр аналитики
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPlaceholder = (title: string, description: string, icon: React.ComponentType<any>) => {
+    const Icon = icon;
+    return (
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="text-center py-12">
+          <Icon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">{title}</h3>
+          <p className="mt-1 text-sm text-gray-500">{description}</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,140 +231,53 @@ const AdminPage: React.FC = () => {
           </nav>
         </div>
 
+        {/* Ошибки */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Содержимое вкладок */}
         <div className="space-y-6">
           {activeTab === 'overview' && (
-            <div>
-              {/* Статистика */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {stats.map((stat) => (
-                  <div key={stat.name} className="bg-white overflow-hidden shadow rounded-lg">
-                    <div className="p-5">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                        </div>
-                        <div className="ml-5 w-0 flex-1">
-                          <dl>
-                            <dt className="text-sm font-medium text-gray-500 truncate">
-                              {stat.name}
-                            </dt>
-                            <dd className="flex items-baseline">
-                              <div className={`text-sm font-medium ${
-                                stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {stat.change}
-                              </div>
-                            </dd>
-                          </dl>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Быстрые действия */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Быстрые действия</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button className="bg-blue-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
-                    Синхронизировать модели
-                  </button>
-                  <button className="bg-green-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-green-700 transition-colors">
-                    Обновить курсы валют
-                  </button>
-                  <button className="bg-purple-600 text-white px-4 py-3 rounded-md text-sm font-medium hover:bg-purple-700 transition-colors">
-                    Генерировать отчет
-                  </button>
+            <>
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Загрузка статистики...</span>
                 </div>
-              </div>
-            </div>
+              ) : (
+                renderOverview()
+              )}
+            </>
           )}
 
-          {activeTab === 'models' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Управление моделями</h3>
-                <div className="flex space-x-2">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
-                    Синхронизировать с LiteLLM
-                  </button>
-                  <button className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                    Добавить модель
-                  </button>
-                </div>
-              </div>
-              <div className="text-center py-12">
-                <CpuChipIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Управление моделями</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Здесь будет интерфейс для управления AI моделями
-                </p>
-              </div>
-            </div>
+          {activeTab === 'models' && <ModelsManagement />}
+          {activeTab === 'users' && <UsersManagement />}
+          {activeTab === 'analytics' && <Analytics />}
+
+          {activeTab === 'companies' && renderPlaceholder(
+            'Управление компаниями',
+            'Здесь будет интерфейс для управления AI компаниями',
+            BuildingOfficeIcon
           )}
 
-          {activeTab === 'companies' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Управление компаниями</h3>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                  Добавить компанию
-                </button>
-              </div>
-              <div className="text-center py-12">
-                <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Управление компаниями</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Здесь будет интерфейс для управления AI компаниями
-                </p>
-              </div>
-            </div>
+          {activeTab === 'billing' && renderPlaceholder(
+            'Биллинг и платежи',
+            'Здесь будет интерфейс для управления биллингом',
+            CurrencyDollarIcon
           )}
 
-          {activeTab === 'users' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Управление пользователями</h3>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700">
-                  Добавить пользователя
-                </button>
-              </div>
-              <div className="text-center py-12">
-                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Управление пользователями</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Здесь будет интерфейс для управления пользователями
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'billing' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Управление биллингом</h3>
-              <div className="text-center py-12">
-                <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Биллинг и платежи</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Здесь будет интерфейс для управления биллингом
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Настройки системы</h3>
-              <div className="text-center py-12">
-                <Cog6ToothIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Настройки</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Здесь будут системные настройки
-                </p>
-              </div>
-            </div>
+          {activeTab === 'settings' && renderPlaceholder(
+            'Настройки',
+            'Здесь будут системные настройки',
+            Cog6ToothIcon
           )}
         </div>
       </div>
