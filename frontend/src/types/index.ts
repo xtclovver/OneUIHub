@@ -214,4 +214,61 @@ export interface RequestFilters {
 export interface SortOption {
   field: string;
   direction: 'asc' | 'desc';
+}
+
+// LiteLLM types
+export interface LiteLLMModel {
+  model_name: string;
+  litellm_params: {
+    model: string;
+    api_key?: string;
+    api_base?: string;
+    [key: string]: any;
+  };
+  model_info: {
+    id: string;
+    mode: string;
+    input_cost_per_token: number;
+    output_cost_per_token: number;
+    max_input_tokens?: number;
+    max_output_tokens?: number;
+    max_tokens?: number;
+    base_model?: string;
+    litellm_provider?: string;
+    db_model?: boolean;
+    [key: string]: any;
+  };
+}
+
+export interface ModelGroupInfo {
+  model_group: string;
+  providers: string[];
+  max_input_tokens: number;
+  max_output_tokens: number;
+  input_cost_per_token: number;
+  output_cost_per_token: number;
+  mode: string;
+  tpm?: number;
+  rpm?: number;
+  supports_parallel_function_calling: boolean;
+  supports_vision: boolean;
+  supports_web_search: boolean;
+  supports_reasoning: boolean;
+  supports_function_calling: boolean;
+  supported_openai_params: string[];
+}
+
+export interface UpdateModelRequest {
+  model_id: string;
+  model_name?: string;
+  model_info?: {
+    input_cost_per_token?: number;
+    output_cost_per_token?: number;
+    max_tokens?: number;
+    max_input_tokens?: number;
+    max_output_tokens?: number;
+    mode?: string;
+    base_model?: string;
+    [key: string]: any;
+  };
 } 

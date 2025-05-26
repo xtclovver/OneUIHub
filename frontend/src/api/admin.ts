@@ -302,6 +302,19 @@ export const syncCompaniesFromLiteLLM = async (): Promise<void> => {
   }
 };
 
+export const syncModelsFromLiteLLM = async (): Promise<void> => {
+  const response = await fetch('/api/v1/admin/models/sync', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Ошибка при синхронизации моделей');
+  }
+};
+
 export const createCompany = async (data: {
   name: string;
   logo_url?: string;
@@ -318,7 +331,20 @@ export const createCompany = async (data: {
   });
 
   if (!response.ok) {
-    throw new Error('Ошибка при создании компании');
+    let errorMessage = 'Ошибка при создании компании';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // Если не удалось парсить JSON, попробуем получить текст
+      try {
+        const errorText = await response.text();
+        errorMessage = errorText || `Ошибка при создании компании: ${response.status}`;
+      } catch {
+        errorMessage = `Ошибка при создании компании: ${response.status}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 };
 
@@ -338,7 +364,20 @@ export const updateCompany = async (id: string, data: {
   });
 
   if (!response.ok) {
-    throw new Error('Ошибка при обновлении компании');
+    let errorMessage = 'Ошибка при обновлении компании';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // Если не удалось парсить JSON, попробуем получить текст
+      try {
+        const errorText = await response.text();
+        errorMessage = errorText || `Ошибка при обновлении компании: ${response.status}`;
+      } catch {
+        errorMessage = `Ошибка при обновлении компании: ${response.status}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 };
 
@@ -351,6 +390,59 @@ export const deleteCompany = async (id: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('Ошибка при удалении компании');
+    let errorMessage = 'Ошибка при удалении компании';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // Если не удалось парсить JSON, попробуем получить текст
+      try {
+        const errorText = await response.text();
+        errorMessage = errorText || `Ошибка при удалении компании: ${response.status}`;
+      } catch {
+        errorMessage = `Ошибка при удалении компании: ${response.status}`;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+};
+
+export const addModelToCompany = async (companyId: string, data: {
+  name: string;
+  description?: string;
+  features?: string;
+  external_id?: string;
+  max_input_tokens?: number;
+  max_output_tokens?: number;
+  mode?: string;
+  supports_parallel_function_calling?: boolean;
+  supports_vision?: boolean;
+  supports_web_search?: boolean;
+  supports_reasoning?: boolean;
+  supports_function_calling?: boolean;
+  input_token_cost?: number;
+  output_token_cost?: number;
+  is_free?: boolean;
+  is_enabled?: boolean;
+}): Promise<void> => {
+  const response = await fetch(`/api/v1/admin/companies/${companyId}/models`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    let errorMessage = 'Ошибка при добавлении модели к компании';
+    try {
+      const jsonError = JSON.parse(errorData);
+      errorMessage = jsonError.error || errorMessage;
+    } catch {
+      errorMessage = `Ошибка при добавлении модели к компании: ${response.status}`;
+    }
+    throw new Error(errorMessage);
   }
 }; 

@@ -216,14 +216,14 @@ const ModelDetailPage: React.FC = () => {
               <div className="glass-card p-4">
                 <h4 className="text-gray-900 font-medium mb-2">Входящие токены</h4>
                 <p className="text-2xl font-bold text-ai-orange">
-                  ${selectedModel.config.input_token_cost?.toFixed(6) || '0.000000'}
+                  ${((selectedModel.config.input_token_cost || 0) * 1000).toFixed(6)}
                 </p>
                 <p className="text-ai-gray-400 text-sm">за 1,000 токенов</p>
               </div>
               <div className="glass-card p-4">
                 <h4 className="text-gray-900 font-medium mb-2">Исходящие токены</h4>
                 <p className="text-2xl font-bold text-ai-purple">
-                  ${selectedModel.config.output_token_cost?.toFixed(6) || '0.000000'}
+                  ${((selectedModel.config.output_token_cost || 0) * 1000).toFixed(6)}
                 </p>
                 <p className="text-ai-gray-400 text-sm">за 1,000 токенов</p>
               </div>

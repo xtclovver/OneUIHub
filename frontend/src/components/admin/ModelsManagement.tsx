@@ -17,6 +17,7 @@ import {
   deleteModel,
   formatCurrency,
   formatNumber,
+  syncModelsFromLiteLLM,
 } from '../../api/admin';
 import { ModelGroupInfo, LiteLLMModel, CreateModelRequest, UpdateModelRequest } from '../../types/admin';
 
@@ -36,6 +37,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -96,6 +98,19 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const openDeleteModal = (modelId: string) => {
     setModelToDelete(modelId);
     setShowDeleteModal(true);
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      await syncModelsFromLiteLLM();
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при синхронизации моделей');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const renderModelGroups = () => (
@@ -162,6 +177,14 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
         <h3 className="text-lg font-medium text-gray-900">Модели</h3>
         <div className="flex space-x-2">
           <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Синхронизация...' : 'Синхронизировать'}
+          </button>
+          <button
             onClick={loadData}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
@@ -202,9 +225,15 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                       <span>Выходные токены: {formatNumber(model.model_info.max_output_tokens)}</span>
                     </div>
                     <div className="flex space-x-4 mt-1">
-                      <span>Стоимость входа: {formatCurrency(model.model_info.input_cost_per_token)}</span>
-                      <span>Стоимость выхода: {formatCurrency(model.model_info.output_cost_per_token)}</span>
+                      <span>Стоимость входа: {formatCurrency(model.model_info.input_cost_per_token)} за токен</span>
+                      <span>Стоимость выхода: {formatCurrency(model.model_info.output_cost_per_token)} за токен</span>
                     </div>
+                    {(model.model_info.tpm || model.model_info.rpm) && (
+                      <div className="flex space-x-4 mt-1">
+                        {model.model_info.tpm && <span>TPM: {formatNumber(model.model_info.tpm)}</span>}
+                        {model.model_info.rpm && <span>RPM: {formatNumber(model.model_info.rpm)}</span>}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -230,6 +259,24 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                         <CheckCircleIcon className="h-3 w-3 mr-1" />
                         Веб-поиск
+                      </span>
+                    )}
+                    {model.model_info.supports_audio_input && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
+                        Аудио
+                      </span>
+                    )}
+                    {model.model_info.supports_prompt_caching && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
+                        Кэш
+                      </span>
+                    )}
+                    {model.model_info.supports_tool_choice && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
+                        Инструменты
                       </span>
                     )}
                   </div>
@@ -501,9 +548,60 @@ const EditModelModal: React.FC<{
     model_id: model.model_info.id,
     model_name: model.model_name,
     model_info: {
+      // Основные параметры
+      key: model.model_info.key,
+      max_tokens: model.model_info.max_tokens,
+      max_input_tokens: model.model_info.max_input_tokens,
+      max_output_tokens: model.model_info.max_output_tokens,
+      mode: model.model_info.mode,
+      litellm_provider: model.model_info.litellm_provider,
+      
+      // Стоимость токенов
       input_cost_per_token: model.model_info.input_cost_per_token,
       output_cost_per_token: model.model_info.output_cost_per_token,
-      max_tokens: model.model_info.max_tokens,
+      cache_creation_input_token_cost: model.model_info.cache_creation_input_token_cost,
+      cache_read_input_token_cost: model.model_info.cache_read_input_token_cost,
+      input_cost_per_character: model.model_info.input_cost_per_character,
+      input_cost_per_token_above_128k_tokens: model.model_info.input_cost_per_token_above_128k_tokens,
+      input_cost_per_token_above_200k_tokens: model.model_info.input_cost_per_token_above_200k_tokens,
+      input_cost_per_query: model.model_info.input_cost_per_query,
+      input_cost_per_second: model.model_info.input_cost_per_second,
+      input_cost_per_audio_token: model.model_info.input_cost_per_audio_token,
+      input_cost_per_token_batches: model.model_info.input_cost_per_token_batches,
+      output_cost_per_token_batches: model.model_info.output_cost_per_token_batches,
+      output_cost_per_audio_token: model.model_info.output_cost_per_audio_token,
+      output_cost_per_character: model.model_info.output_cost_per_character,
+      output_cost_per_reasoning_token: model.model_info.output_cost_per_reasoning_token,
+      output_cost_per_token_above_128k_tokens: model.model_info.output_cost_per_token_above_128k_tokens,
+      output_cost_per_character_above_128k_tokens: model.model_info.output_cost_per_character_above_128k_tokens,
+      output_cost_per_token_above_200k_tokens: model.model_info.output_cost_per_token_above_200k_tokens,
+      output_cost_per_second: model.model_info.output_cost_per_second,
+      output_cost_per_image: model.model_info.output_cost_per_image,
+      output_vector_size: model.model_info.output_vector_size,
+      search_context_cost_per_query: model.model_info.search_context_cost_per_query,
+      
+      // Лимиты
+      tpm: model.model_info.tpm,
+      rpm: model.model_info.rpm,
+      
+      // Поддержка функций
+      supports_system_messages: model.model_info.supports_system_messages,
+      supports_response_schema: model.model_info.supports_response_schema,
+      supports_vision: model.model_info.supports_vision,
+      supports_function_calling: model.model_info.supports_function_calling,
+      supports_tool_choice: model.model_info.supports_tool_choice,
+      supports_assistant_prefill: model.model_info.supports_assistant_prefill,
+      supports_prompt_caching: model.model_info.supports_prompt_caching,
+      supports_audio_input: model.model_info.supports_audio_input,
+      supports_audio_output: model.model_info.supports_audio_output,
+      supports_pdf_input: model.model_info.supports_pdf_input,
+      supports_embedding_image_input: model.model_info.supports_embedding_image_input,
+      supports_native_streaming: model.model_info.supports_native_streaming,
+      supports_web_search: model.model_info.supports_web_search,
+      supports_reasoning: model.model_info.supports_reasoning,
+      
+      // OpenAI параметры
+      supported_openai_params: model.model_info.supported_openai_params,
     },
   });
 
@@ -514,7 +612,7 @@ const EditModelModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">Редактировать модель</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -522,78 +620,456 @@ const EditModelModal: React.FC<{
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Название модели
-            </label>
-            <input
-              type="text"
-              value={formData.model_name || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
-              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Стоимость входных токенов
-              </label>
-              <input
-                type="number"
-                step="0.000001"
-                value={formData.model_info?.input_cost_per_token || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  model_info: { 
-                    ...prev.model_info, 
-                    input_cost_per_token: parseFloat(e.target.value) 
-                  } 
-                }))}
-                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Основная информация */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Основная информация</h4>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Стоимость выходных токенов
+                Название модели
               </label>
               <input
-                type="number"
-                step="0.000001"
-                value={formData.model_info?.output_cost_per_token || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  model_info: { 
-                    ...prev.model_info, 
-                    output_cost_per_token: parseFloat(e.target.value) 
-                  } 
-                }))}
+                type="text"
+                value={formData.model_name || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
                 className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Режим
+                </label>
+                <select
+                  value={formData.model_info?.mode || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      mode: e.target.value 
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Выберите режим</option>
+                  <option value="chat">Chat</option>
+                  <option value="completion">Completion</option>
+                  <option value="embedding">Embedding</option>
+                  <option value="image_generation">Image Generation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Провайдер LiteLLM
+                </label>
+                <input
+                  type="text"
+                  value={formData.model_info?.litellm_provider || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      litellm_provider: e.target.value 
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Например, anthropic, openai"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Стоимость */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Стоимость токенов</h4>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Максимум токенов
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость входных токенов (за 1 токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.input_cost_per_token || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      input_cost_per_token: parseFloat(e.target.value) || 0
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000030"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость выходных токенов (за 1 токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.output_cost_per_token || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      output_cost_per_token: parseFloat(e.target.value) || 0
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000060"
+                />
+              </div>
+            </div>
+
+            {/* Дополнительные стоимости */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость создания кэша (за токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.cache_creation_input_token_cost || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      cache_creation_input_token_cost: e.target.value ? parseFloat(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000075"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость чтения кэша (за токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.cache_read_input_token_cost || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      cache_read_input_token_cost: e.target.value ? parseFloat(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000003"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость рассуждений (за токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.output_cost_per_reasoning_token || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      output_cost_per_reasoning_token: e.target.value ? parseFloat(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000240"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость аудио токенов (вход)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.model_info?.input_cost_per_audio_token || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      input_cost_per_audio_token: e.target.value ? parseFloat(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000100"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Лимиты токенов */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Лимиты токенов</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Максимум токенов за запрос
+                </label>
+                <input
+                  type="number"
+                  value={formData.model_info?.max_tokens || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      max_tokens: e.target.value ? parseInt(e.target.value) : 0
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="4096"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Максимум входных токенов
+                </label>
+                <input
+                  type="number"
+                  value={formData.model_info?.max_input_tokens || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      max_input_tokens: e.target.value ? parseInt(e.target.value) : 0
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="8192"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Максимум выходных токенов
+                </label>
+                <input
+                  type="number"
+                  value={formData.model_info?.max_output_tokens || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      max_output_tokens: e.target.value ? parseInt(e.target.value) : 0
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="4096"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Лимит токенов в минуту (TPM)
+                </label>
+                <input
+                  type="number"
+                  value={formData.model_info?.tpm || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      tpm: e.target.value ? parseInt(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="10000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Лимит запросов в минуту (RPM)
+                </label>
+                <input
+                  type="number"
+                  value={formData.model_info?.rpm || ''}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      rpm: e.target.value ? parseInt(e.target.value) : null
+                    } 
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Поддержка функций */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Поддержка функций</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_vision || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_vision: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Поддержка видения</span>
               </label>
-              <input
-                type="number"
-                value={formData.model_info?.max_tokens || ''}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  model_info: { 
-                    ...prev.model_info, 
-                    max_tokens: parseInt(e.target.value) 
-                  } 
-                }))}
-                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              />
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_function_calling || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_function_calling: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Вызов функций</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_tool_choice || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_tool_choice: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Выбор инструментов</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_web_search || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_web_search: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Веб-поиск</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_reasoning || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_reasoning: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Рассуждения</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_audio_input || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_audio_input: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Аудио вход</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_audio_output || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_audio_output: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Аудио выход</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_pdf_input || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_pdf_input: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">PDF вход</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.model_info?.supports_prompt_caching || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    model_info: { 
+                      ...prev.model_info, 
+                      supports_prompt_caching: e.target.checked
+                    } 
+                  }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Кэширование промптов</span>
+              </label>
             </div>
           </div>
           
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
@@ -605,7 +1081,7 @@ const EditModelModal: React.FC<{
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              Сохранить
+              Сохранить изменения
             </button>
           </div>
         </form>
@@ -642,34 +1118,147 @@ const ModelDetailsModal: React.FC<{
                 <span className="text-sm font-medium text-gray-500">Провайдер:</span>
                 <p className="text-sm text-gray-900">{model.model_info.litellm_provider}</p>
               </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Режим:</span>
+                <p className="text-sm text-gray-900">{model.model_info.mode}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Ключ:</span>
+                <p className="text-sm text-gray-900">{model.model_info.key}</p>
+              </div>
             </div>
           </div>
 
           {/* Стоимость */}
           <div>
-            <h5 className="text-md font-medium text-gray-900 mb-2">Стоимость</h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h5 className="text-md font-medium text-gray-900 mb-2">Стоимость (за токен)</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <span className="text-sm font-medium text-gray-500">Входные токены:</span>
-                <p className="text-sm text-gray-900">${model.model_info.input_cost_per_token}</p>
+                <p className="text-sm text-gray-900">{formatCurrency(model.model_info.input_cost_per_token)}</p>
               </div>
               <div>
                 <span className="text-sm font-medium text-gray-500">Выходные токены:</span>
-                <p className="text-sm text-gray-900">${model.model_info.output_cost_per_token}</p>
+                <p className="text-sm text-gray-900">{formatCurrency(model.model_info.output_cost_per_token)}</p>
               </div>
+              {model.model_info.output_cost_per_reasoning_token && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Рассуждения:</span>
+                  <p className="text-sm text-gray-900">{formatCurrency(model.model_info.output_cost_per_reasoning_token)}</p>
+                </div>
+              )}
+              {model.model_info.cache_creation_input_token_cost && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Создание кэша:</span>
+                  <p className="text-sm text-gray-900">{formatCurrency(model.model_info.cache_creation_input_token_cost)}</p>
+                </div>
+              )}
+              {model.model_info.cache_read_input_token_cost && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Чтение кэша:</span>
+                  <p className="text-sm text-gray-900">{formatCurrency(model.model_info.cache_read_input_token_cost)}</p>
+                </div>
+              )}
+              {model.model_info.input_cost_per_audio_token && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Аудио вход:</span>
+                  <p className="text-sm text-gray-900">{formatCurrency(model.model_info.input_cost_per_audio_token)}</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Лимиты */}
-          {model.model_info.max_tokens && (
-            <div>
-              <h5 className="text-md font-medium text-gray-900 mb-2">Лимиты</h5>
+          <div>
+            <h5 className="text-md font-medium text-gray-900 mb-2">Лимиты</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <span className="text-sm font-medium text-gray-500">Максимум токенов:</span>
-                <p className="text-sm text-gray-900">{model.model_info.max_tokens.toLocaleString()}</p>
+                <p className="text-sm text-gray-900">{formatNumber(model.model_info.max_tokens)}</p>
               </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Входные токены:</span>
+                <p className="text-sm text-gray-900">{formatNumber(model.model_info.max_input_tokens)}</p>
+              </div>
+              <div>
+                <span className="text-sm font-medium text-gray-500">Выходные токены:</span>
+                <p className="text-sm text-gray-900">{formatNumber(model.model_info.max_output_tokens)}</p>
+              </div>
+              {model.model_info.tpm && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">TPM:</span>
+                  <p className="text-sm text-gray-900">{formatNumber(model.model_info.tpm)}</p>
+                </div>
+              )}
+              {model.model_info.rpm && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">RPM:</span>
+                  <p className="text-sm text-gray-900">{formatNumber(model.model_info.rpm)}</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Поддержка функций */}
+          <div>
+            <h5 className="text-md font-medium text-gray-900 mb-2">Поддержка функций</h5>
+            <div className="flex flex-wrap gap-2">
+              {model.model_info.supports_vision && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Видение
+                </span>
+              )}
+              {model.model_info.supports_function_calling && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Функции
+                </span>
+              )}
+              {model.model_info.supports_tool_choice && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Выбор инструментов
+                </span>
+              )}
+              {model.model_info.supports_reasoning && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Рассуждения
+                </span>
+              )}
+              {model.model_info.supports_web_search && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Веб-поиск
+                </span>
+              )}
+              {model.model_info.supports_audio_input && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Аудио вход
+                </span>
+              )}
+              {model.model_info.supports_audio_output && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Аудио выход
+                </span>
+              )}
+              {model.model_info.supports_pdf_input && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  PDF вход
+                </span>
+              )}
+              {model.model_info.supports_prompt_caching && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" />
+                  Кэширование
+                </span>
+              )}
+            </div>
+          </div>
 
           {/* LiteLLM параметры */}
           <div>

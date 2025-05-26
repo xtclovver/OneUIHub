@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   GlobeAltIcon,
+  CpuChipIcon,
 } from '@heroicons/react/24/outline';
 import {
   createCompany,
@@ -16,6 +17,7 @@ import {
   deleteCompany,
   syncCompaniesFromLiteLLM,
   formatDate,
+  addModelToCompany,
 } from '../../api/admin';
 import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
@@ -35,6 +37,8 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [showAddModelModal, setShowAddModelModal] = useState(false);
+  const [companyForModel, setCompanyForModel] = useState<Company | null>(null);
 
   useEffect(() => {
     loadCompanies();
@@ -67,6 +71,7 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   };
 
   const handleCreateCompany = async (data: CreateCompanyRequest) => {
+    setError(null);
     try {
       await createCompany(data);
       setShowCreateModal(false);
@@ -79,6 +84,7 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const handleUpdateCompany = async (data: UpdateCompanyRequest) => {
     if (!selectedCompany) return;
 
+    setError(null);
     try {
       await updateCompany(selectedCompany.id, data);
       setShowEditModal(false);
@@ -92,6 +98,7 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const handleDeleteCompany = async () => {
     if (!companyToDelete) return;
     
+    setError(null);
     try {
       await deleteCompany(companyToDelete);
       setShowDeleteModal(false);
@@ -115,6 +122,25 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const openEditModal = (company: Company) => {
     setSelectedCompany(company);
     setShowEditModal(true);
+  };
+
+  const openAddModelModal = (company: Company) => {
+    setCompanyForModel(company);
+    setShowAddModelModal(true);
+  };
+
+  const handleAddModel = async (data: any) => {
+    if (!companyForModel) return;
+    
+    setError(null);
+    try {
+      await addModelToCompany(companyForModel.id, data);
+      setShowAddModelModal(false);
+      setCompanyForModel(null);
+      loadCompanies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка при добавлении модели');
+    }
   };
 
   return (
@@ -156,12 +182,20 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
       {/* Ошибки */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <XCircleIcon className="h-5 w-5 text-red-400" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
-              <div className="mt-2 text-sm text-red-700">{error}</div>
+          <div className="flex justify-between">
+            <div className="flex">
+              <XCircleIcon className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
             </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-600"
+            >
+              <XCircleIcon className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
@@ -215,6 +249,13 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
                     title="Редактировать"
                   >
                     <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => openAddModelModal(company)}
+                    className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                    title="Добавить модель"
+                  >
+                    <CpuChipIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => openDeleteModal(company.id)}
@@ -306,6 +347,18 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Модальное окно добавления модели */}
+      {showAddModelModal && companyForModel && (
+        <AddModelModal
+          company={companyForModel}
+          onClose={() => {
+            setShowAddModelModal(false);
+            setCompanyForModel(null);
+          }}
+          onSubmit={handleAddModel}
+        />
       )}
     </div>
   );
@@ -573,6 +626,307 @@ const CompanyDetailsModal: React.FC<{
             Закрыть
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Компонент для добавления модели к компании
+const AddModelModal: React.FC<{
+  company: Company;
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+}> = ({ company, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    features: '',
+    external_id: '',
+    max_input_tokens: '',
+    max_output_tokens: '',
+    mode: 'chat',
+    supports_parallel_function_calling: false,
+    supports_vision: false,
+    supports_web_search: false,
+    supports_reasoning: false,
+    supports_function_calling: false,
+    input_token_cost: '',
+    output_token_cost: '',
+    is_free: false,
+    is_enabled: true,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const submitData = {
+      ...formData,
+      max_input_tokens: formData.max_input_tokens ? parseInt(formData.max_input_tokens) : undefined,
+      max_output_tokens: formData.max_output_tokens ? parseInt(formData.max_output_tokens) : undefined,
+      input_token_cost: formData.input_token_cost ? parseFloat(formData.input_token_cost) : undefined,
+      output_token_cost: formData.output_token_cost ? parseFloat(formData.output_token_cost) : undefined,
+    };
+    
+    onSubmit(submitData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Добавить модель к компании "{company.name}"
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Основная информация */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Основная информация</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Название модели *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  required
+                  placeholder="GPT-4, Claude-3, Gemini Pro..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Внешний ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.external_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, external_id: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="gpt-4, claude-3-sonnet..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Описание
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Описание модели..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Особенности
+              </label>
+              <input
+                type="text"
+                value={formData.features}
+                onChange={(e) => setFormData(prev => ({ ...prev, features: e.target.value }))}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Быстрая, точная, мультимодальная..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Режим
+              </label>
+              <select
+                value={formData.mode}
+                onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value }))}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="chat">Chat</option>
+                <option value="completion">Completion</option>
+                <option value="embedding">Embedding</option>
+                <option value="image_generation">Image Generation</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Лимиты токенов */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Лимиты токенов</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Максимум входных токенов
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_input_tokens}
+                  onChange={(e) => setFormData(prev => ({ ...prev, max_input_tokens: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="8192"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Максимум выходных токенов
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_output_tokens}
+                  onChange={(e) => setFormData(prev => ({ ...prev, max_output_tokens: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="4096"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Стоимость */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Стоимость</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость входных токенов (за токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.input_token_cost}
+                  onChange={(e) => setFormData(prev => ({ ...prev, input_token_cost: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000030"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Стоимость выходных токенов (за токен)
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.output_token_cost}
+                  onChange={(e) => setFormData(prev => ({ ...prev, output_token_cost: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.000060"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Поддержка функций */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Поддержка функций</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.supports_vision}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supports_vision: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Поддержка видения</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.supports_function_calling}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supports_function_calling: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Вызов функций</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.supports_parallel_function_calling}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supports_parallel_function_calling: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Параллельные функции</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.supports_web_search}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supports_web_search: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Веб-поиск</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.supports_reasoning}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supports_reasoning: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Рассуждения</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Настройки */}
+          <div className="space-y-4">
+            <h4 className="text-md font-medium text-gray-900">Настройки</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.is_free}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_free: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Бесплатная модель</span>
+              </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={formData.is_enabled}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_enabled: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="ml-2 text-sm text-gray-700">Модель включена</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Добавить модель
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

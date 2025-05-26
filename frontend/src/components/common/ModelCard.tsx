@@ -173,15 +173,15 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                       <div className="text-gray-800 font-medium">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.input_token_cost 
-                            : model.config.input_token_cost * 1000
+                            ? model.config.input_token_cost * 1000 
+                            : model.config.input_token_cost * 1000000
                         ).usd}
                       </div>
                       <div className="text-gray-600">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.input_token_cost 
-                            : model.config.input_token_cost * 1000
+                            ? model.config.input_token_cost * 1000 
+                            : model.config.input_token_cost * 1000000
                         ).rub}
                       </div>
                     </div>
@@ -197,15 +197,15 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                       <div className="text-gray-800 font-medium">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.output_token_cost 
-                            : model.config.output_token_cost * 1000
+                            ? model.config.output_token_cost * 1000 
+                            : model.config.output_token_cost * 1000000
                         ).usd}
                       </div>
                       <div className="text-gray-600">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.output_token_cost 
-                            : model.config.output_token_cost * 1000
+                            ? model.config.output_token_cost * 1000 
+                            : model.config.output_token_cost * 1000000
                         ).rub}
                       </div>
                     </div>
