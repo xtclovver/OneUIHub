@@ -21,6 +21,8 @@ import {
   addModelToCompany,
   getAllModels,
   linkModelToCompany,
+  uploadLogo,
+  deleteLogo,
 } from '../../api/admin';
 import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
@@ -429,10 +431,60 @@ const CreateCompanyModal: React.FC<{
     description: '',
     external_id: '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Проверяем тип файла
+      if (!file.type.includes('png') && !file.type.includes('svg')) {
+        alert('Поддерживаются только файлы .png и .svg');
+        return;
+      }
+      
+      // Проверяем размер файла (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Размер файла не должен превышать 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+      
+      // Создаем превью для PNG файлов
+      if (file.type.includes('png')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setLogoPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLogoPreview(''); // Для SVG не показываем превью
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    let finalFormData = { ...formData };
+    
+    // Если выбран файл, загружаем его
+    if (logoFile) {
+      setUploading(true);
+      try {
+        const logoUrl = await uploadLogo(logoFile);
+        finalFormData.logo_url = logoUrl;
+      } catch (error) {
+        alert('Ошибка при загрузке логотипа: ' + (error as Error).message);
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+    
+    onSubmit(finalFormData);
   };
 
   return (
@@ -461,15 +513,47 @@ const CreateCompanyModal: React.FC<{
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL логотипа
+              Логотип компании
             </label>
-            <input
-              type="url"
-              value={formData.logo_url}
-              onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
-              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              placeholder="https://example.com/logo.png"
-            />
+            <div className="space-y-3">
+              {/* Загрузка файла */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Загрузить с компьютера (.png, .svg, до 5MB)
+                </label>
+                <input
+                  type="file"
+                  accept=".png,.svg"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {logoPreview && (
+                  <div className="mt-2">
+                    <img src={logoPreview} alt="Превью логотипа" className="w-16 h-16 object-contain border rounded" />
+                  </div>
+                )}
+                {logoFile && logoFile.type.includes('svg') && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Выбран SVG файл: {logoFile.name}
+                  </div>
+                )}
+              </div>
+              
+              {/* Или URL */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Или введите URL логотипа
+                </label>
+                <input
+                  type="url"
+                  value={formData.logo_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://example.com/logo.png"
+                  disabled={!!logoFile}
+                />
+              </div>
+            </div>
           </div>
           
           <div>
@@ -494,23 +578,35 @@ const CreateCompanyModal: React.FC<{
               value={formData.external_id}
               onChange={(e) => setFormData(prev => ({ ...prev, external_id: e.target.value }))}
               className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              placeholder="openai, anthropic, google..."
+              placeholder="external-id"
             />
           </div>
           
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              disabled={uploading}
             >
               Отмена
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={!formData.name || uploading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              Создать
+              {uploading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Загрузка...
+                </>
+              ) : (
+                'Создать компанию'
+              )}
             </button>
           </div>
         </form>
@@ -531,10 +627,80 @@ const EditCompanyModal: React.FC<{
     description: company.description || '',
     external_id: company.external_id || '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Проверяем тип файла
+      if (!file.type.includes('png') && !file.type.includes('svg')) {
+        alert('Поддерживаются только файлы .png и .svg');
+        return;
+      }
+      
+      // Проверяем размер файла (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Размер файла не должен превышать 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+      
+      // Создаем превью для PNG файлов
+      if (file.type.includes('png')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setLogoPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLogoPreview(''); // Для SVG не показываем превью
+      }
+    }
+  };
+
+  const handleRemoveCurrentLogo = async () => {
+    if (formData.logo_url && formData.logo_url.startsWith('/uploads/')) {
+      try {
+        await deleteLogo(formData.logo_url);
+      } catch (error) {
+        console.error('Ошибка при удалении логотипа:', error);
+      }
+    }
+    setFormData(prev => ({ ...prev, logo_url: '' }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    let finalFormData = { ...formData };
+    
+    // Если выбран новый файл, загружаем его
+    if (logoFile) {
+      setUploading(true);
+      try {
+        // Удаляем старый логотип если он был загружен через наш сервис
+        if (formData.logo_url && formData.logo_url.startsWith('/uploads/')) {
+          try {
+            await deleteLogo(formData.logo_url);
+          } catch (error) {
+            console.error('Ошибка при удалении старого логотипа:', error);
+          }
+        }
+        
+        const logoUrl = await uploadLogo(logoFile);
+        finalFormData.logo_url = logoUrl;
+      } catch (error) {
+        alert('Ошибка при загрузке логотипа: ' + (error as Error).message);
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+    
+    onSubmit(finalFormData);
   };
 
   return (
@@ -562,14 +728,64 @@ const EditCompanyModal: React.FC<{
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL логотипа
+              Логотип компании
             </label>
-            <input
-              type="url"
-              value={formData.logo_url}
-              onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
-              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            />
+            <div className="space-y-3">
+              {/* Текущий логотип */}
+              {formData.logo_url && !logoFile && (
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src={formData.logo_url} 
+                    alt="Текущий логотип" 
+                    className="w-16 h-16 object-contain border rounded"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveCurrentLogo}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Удалить текущий логотип
+                  </button>
+                </div>
+              )}
+              
+              {/* Загрузка нового файла */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Загрузить новый логотип (.png, .svg, до 5MB)
+                </label>
+                <input
+                  type="file"
+                  accept=".png,.svg"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {logoPreview && (
+                  <div className="mt-2">
+                    <img src={logoPreview} alt="Превью нового логотипа" className="w-16 h-16 object-contain border rounded" />
+                  </div>
+                )}
+                {logoFile && logoFile.type.includes('svg') && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Выбран SVG файл: {logoFile.name}
+                  </div>
+                )}
+              </div>
+              
+              {/* Или URL */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Или введите URL логотипа
+                </label>
+                <input
+                  type="url"
+                  value={formData.logo_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  disabled={!!logoFile}
+                />
+              </div>
+            </div>
           </div>
           
           <div>
@@ -596,19 +812,31 @@ const EditCompanyModal: React.FC<{
             />
           </div>
           
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              disabled={uploading}
             >
               Отмена
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={uploading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              Сохранить
+              {uploading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Загрузка...
+                </>
+              ) : (
+                'Сохранить изменения'
+              )}
             </button>
           </div>
         </form>

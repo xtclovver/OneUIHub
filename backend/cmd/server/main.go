@@ -72,12 +72,13 @@ func main() {
 	tierHandler := handlers.NewTierHandler(tierService)
 	userHandler := handlers.NewUserHandler(userService, litellmClient)
 	rateLimitHandler := handlers.NewRateLimitHandler(rateLimitService)
+	uploadHandler := handlers.NewUploadHandler()
 
 	// Инициализируем middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
 	// Инициализируем маршруты
-	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, rateLimitHandler, authMiddleware)
+	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, rateLimitHandler, uploadHandler, authMiddleware)
 
 	// Запускаем сервер
 	engine := router.SetupRoutes()

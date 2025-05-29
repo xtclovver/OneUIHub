@@ -16,6 +16,7 @@ type Router struct {
 	tierHandler      *handlers.TierHandler
 	userHandler      *handlers.UserHandler
 	rateLimitHandler *handlers.RateLimitHandler
+	uploadHandler    *handlers.UploadHandler
 	// settingsHandler *handlers.SettingsHandler
 	authMiddleware *middleware.AuthMiddleware
 }
@@ -29,6 +30,7 @@ func NewRouter(
 	tierHandler *handlers.TierHandler,
 	userHandler *handlers.UserHandler,
 	rateLimitHandler *handlers.RateLimitHandler,
+	uploadHandler *handlers.UploadHandler,
 	// settingsHandler *handlers.SettingsHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
@@ -41,6 +43,7 @@ func NewRouter(
 		tierHandler:      tierHandler,
 		userHandler:      userHandler,
 		rateLimitHandler: rateLimitHandler,
+		uploadHandler:    uploadHandler,
 		// settingsHandler: settingsHandler,
 		authMiddleware: authMiddleware,
 	}
@@ -71,6 +74,9 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		})
 	})
 
+	// Статические файлы для загруженных логотипов
+	router.Static("/uploads", "./uploads")
+
 	// API группа
 	api := router.Group("/api/v1")
 
@@ -94,6 +100,13 @@ func (r *Router) SetupRoutes() *gin.Engine {
 	admin.Use(r.authMiddleware.RequireAuth())
 	admin.Use(r.authMiddleware.RequireAdmin())
 	{
+		// Маршруты для загрузки файлов
+		upload := admin.Group("/upload")
+		{
+			upload.POST("/logo", r.uploadHandler.UploadLogo)
+			upload.DELETE("/logo", r.uploadHandler.DeleteLogo)
+		}
+
 		// Маршруты для управления моделями
 		models := admin.Group("/models")
 		{

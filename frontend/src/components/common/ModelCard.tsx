@@ -31,6 +31,10 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
     return company?.name || 'Неизвестная компания';
   };
 
+  const getCompany = () => {
+    return companies.find(c => c.id === model.company_id);
+  };
+
   const getStatusBadge = () => {
     if (!model.model_config?.is_enabled) {
       return (
@@ -59,7 +63,20 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
   };
 
   const getModelIcon = () => {
-    // Определяем иконку на основе типа модели
+    const company = getCompany();
+    
+    // Если у компании есть логотип, используем его
+    if (company?.logo_url) {
+      return (
+        <img
+          src={company.logo_url}
+          alt={`${company.name} logo`}
+          className="w-8 h-8 object-contain rounded"
+        />
+      );
+    }
+    
+    // Иначе используем эмодзи на основе типа модели
     if (model.name.toLowerCase().includes('gpt') || model.name.toLowerCase().includes('openai')) {
       return '🤖';
     }

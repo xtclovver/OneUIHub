@@ -388,4 +388,32 @@ export const linkModelToCompany = async (modelId: string, companyId: string): Pr
   } catch (error: any) {
     throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при связывании модели с компанией');
   }
+};
+
+// Функции для загрузки логотипов
+export const uploadLogo = async (file: File): Promise<string> => {
+  try {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const response = await apiClient.post('/admin/upload/logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return (response.data as any).data.url;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при загрузке логотипа');
+  }
+};
+
+export const deleteLogo = async (logoUrl: string): Promise<void> => {
+  try {
+    await apiClient.delete('/admin/upload/logo', {
+      params: { url: logoUrl }
+    });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при удалении логотипа');
+  }
 }; 

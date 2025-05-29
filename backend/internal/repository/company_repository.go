@@ -62,10 +62,19 @@ func (r *companyRepository) Delete(ctx context.Context, id string) error {
 
 func (r *companyRepository) List(ctx context.Context, limit, offset int) ([]*domain.Company, error) {
 	var companies []*domain.Company
+
+	// Сначала получаем компании с подсчетом моделей
+	type CompanyWithCount struct {
+		domain.Company
+		ModelsCount int `gorm:"column:models_count"`
+	}
+
+	var companiesWithCount []CompanyWithCount
 	query := r.db.WithContext(ctx).
-		Select("companies.*, COUNT(models.id) as models_count").
+		Table("companies").
+		Select("companies.*, COALESCE(COUNT(models.id), 0) as models_count").
 		Joins("LEFT JOIN models ON companies.id = models.company_id").
-		Group("companies.id")
+		Group("companies.id, companies.name, companies.logo_url, companies.description, companies.external_id, companies.created_at, companies.updated_at")
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -74,8 +83,24 @@ func (r *companyRepository) List(ctx context.Context, limit, offset int) ([]*dom
 		query = query.Offset(offset)
 	}
 
-	if err := query.Find(&companies).Error; err != nil {
+	if err := query.Find(&companiesWithCount).Error; err != nil {
 		return nil, fmt.Errorf("failed to list companies: %w", err)
 	}
+
+	// Конвертируем в обычные компании с заполненным ModelsCount
+	for _, cwc := range companiesWithCount {
+		company := &domain.Company{
+			ID:          cwc.ID,
+			Name:        cwc.Name,
+			LogoURL:     cwc.LogoURL,
+			Description: cwc.Description,
+			ExternalID:  cwc.ExternalID,
+			CreatedAt:   cwc.CreatedAt,
+			UpdatedAt:   cwc.UpdatedAt,
+			ModelsCount: cwc.ModelsCount,
+		}
+		companies = append(companies, company)
+	}
+
 	return companies, nil
 }

@@ -24,6 +24,7 @@ const ModelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const dispatch = useDispatch();
   const { selectedModel, isLoading } = useSelector((state: RootState) => state.models);
+  const { companies } = useSelector((state: RootState) => state.companies);
 
   useEffect(() => {
     if (id) {
@@ -36,7 +37,29 @@ const ModelDetailPage: React.FC = () => {
     };
   }, [dispatch, id]);
 
-  const getModelIcon = (modelName: string) => {
+  const getCompany = () => {
+    if (!selectedModel) return null;
+    return companies.find(c => c.id === selectedModel.company_id);
+  };
+
+  const getModelIcon = () => {
+    if (!selectedModel) return '⚡';
+    
+    const company = getCompany();
+    
+    // Если у компании есть логотип, используем его
+    if (company?.logo_url) {
+      return (
+        <img
+          src={company.logo_url}
+          alt={`${company.name} logo`}
+          className="w-16 h-16 object-contain rounded-lg"
+        />
+      );
+    }
+    
+    // Иначе используем эмодзи на основе типа модели
+    const modelName = selectedModel.name;
     if (modelName.toLowerCase().includes('gpt') || modelName.toLowerCase().includes('openai')) {
       return '🤖';
     }
@@ -159,7 +182,7 @@ const ModelDetailPage: React.FC = () => {
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center">
               <div className="w-20 h-20 bg-gradient-ai rounded-2xl flex items-center justify-center mr-6 text-3xl">
-                {getModelIcon(selectedModel.name)}
+                {getModelIcon()}
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
