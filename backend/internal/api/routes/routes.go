@@ -8,13 +8,14 @@ import (
 )
 
 type Router struct {
-	authHandler     *handlers.AuthHandler
-	modelHandler    *handlers.ModelHandler
-	companyHandler  *handlers.CompanyHandler
-	budgetHandler   *handlers.BudgetHandler
-	currencyHandler *handlers.CurrencyHandler
-	tierHandler     *handlers.TierHandler
-	userHandler     *handlers.UserHandler
+	authHandler      *handlers.AuthHandler
+	modelHandler     *handlers.ModelHandler
+	companyHandler   *handlers.CompanyHandler
+	budgetHandler    *handlers.BudgetHandler
+	currencyHandler  *handlers.CurrencyHandler
+	tierHandler      *handlers.TierHandler
+	userHandler      *handlers.UserHandler
+	rateLimitHandler *handlers.RateLimitHandler
 	// settingsHandler *handlers.SettingsHandler
 	authMiddleware *middleware.AuthMiddleware
 }
@@ -27,17 +28,19 @@ func NewRouter(
 	currencyHandler *handlers.CurrencyHandler,
 	tierHandler *handlers.TierHandler,
 	userHandler *handlers.UserHandler,
+	rateLimitHandler *handlers.RateLimitHandler,
 	// settingsHandler *handlers.SettingsHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
-		authHandler:     authHandler,
-		modelHandler:    modelHandler,
-		companyHandler:  companyHandler,
-		budgetHandler:   budgetHandler,
-		currencyHandler: currencyHandler,
-		tierHandler:     tierHandler,
-		userHandler:     userHandler,
+		authHandler:      authHandler,
+		modelHandler:     modelHandler,
+		companyHandler:   companyHandler,
+		budgetHandler:    budgetHandler,
+		currencyHandler:  currencyHandler,
+		tierHandler:      tierHandler,
+		userHandler:      userHandler,
+		rateLimitHandler: rateLimitHandler,
 		// settingsHandler: settingsHandler,
 		authMiddleware: authMiddleware,
 	}
@@ -151,6 +154,28 @@ func (r *Router) SetupRoutes() *gin.Engine {
 			companies.DELETE("/:id", r.companyHandler.DeleteCompany)
 		}
 
+		// Маршруты для управления тарифами
+		tiers := admin.Group("/tiers")
+		{
+			tiers.GET("", r.tierHandler.GetAllTiers)
+			tiers.GET("/:id", r.tierHandler.GetTierByID)
+			tiers.POST("", r.tierHandler.CreateTier)
+			tiers.PUT("/:id", r.tierHandler.UpdateTier)
+			tiers.DELETE("/:id", r.tierHandler.DeleteTier)
+		}
+
+		// Маршруты для управления лимитами
+		rateLimits := admin.Group("/rate-limits")
+		{
+			rateLimits.GET("", r.rateLimitHandler.GetAllRateLimits)
+			rateLimits.GET("/:id", r.rateLimitHandler.GetRateLimitByID)
+			rateLimits.POST("", r.rateLimitHandler.CreateRateLimit)
+			rateLimits.PUT("/:id", r.rateLimitHandler.UpdateRateLimit)
+			rateLimits.DELETE("/:id", r.rateLimitHandler.DeleteRateLimit)
+			rateLimits.GET("/model/:model_id", r.rateLimitHandler.GetRateLimitsByModel)
+			rateLimits.GET("/tier/:tier_id", r.rateLimitHandler.GetRateLimitsByTier)
+		}
+
 		// Маршруты для управления настройками
 		// settings := admin.Group("/settings")
 		// {
@@ -189,6 +214,12 @@ func (r *Router) SetupRoutes() *gin.Engine {
 	tiers := api.Group("/tiers")
 	{
 		tiers.GET("", r.tierHandler.GetAllTiers)
+	}
+
+	// Публичные маршруты для лимитов
+	rateLimits := api.Group("/rate-limits")
+	{
+		rateLimits.GET("", r.rateLimitHandler.GetAllRateLimits)
 	}
 
 	// Защищенные маршруты для пользователей

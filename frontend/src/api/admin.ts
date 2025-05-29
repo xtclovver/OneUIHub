@@ -128,24 +128,18 @@ export const createModel = async (data: CreateModelRequest): Promise<void> => {
 };
 
 export const updateModel = async (data: UpdateModelRequest): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/model/update`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при обновлении модели');
+  try {
+    await apiClient.put(`/admin/models/${data.model_id}`, data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при обновлении модели');
   }
 };
 
 export const deleteModel = async (modelId: string): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/model/delete`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ id: modelId }),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при удалении модели');
+  try {
+    await apiClient.delete(`/admin/models/${modelId}`);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || 'Ошибка при удалении модели');
   }
 };
 

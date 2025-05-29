@@ -53,6 +53,7 @@ func main() {
 	currencyRepo := repository.NewCurrencyRepository(db.DB)
 	exchangeRateRepo := repository.NewExchangeRateRepository(db.DB)
 	userSpendingRepo := repository.NewUserSpendingRepository(db.DB)
+	rateLimitRepo := repository.NewRateLimitRepository(db.DB)
 
 	// Инициализируем сервисы
 	userService := service.NewUserService(userRepo, userLimitRepo, tierRepo)
@@ -60,6 +61,7 @@ func main() {
 	budgetService := service.NewBudgetService(budgetRepo, userRepo, litellmClient)
 	currencyService := service.NewCurrencyService(exchangeRateRepo, currencyRepo, "")
 	tierService := service.NewTierService(tierRepo, userRepo, userSpendingRepo)
+	rateLimitService := service.NewRateLimitService(rateLimitRepo, modelRepo, tierRepo)
 
 	// Инициализируем обработчики
 	authHandler := handlers.NewAuthHandler(userService, jwtManager)
@@ -69,12 +71,13 @@ func main() {
 	currencyHandler := handlers.NewCurrencyHandler(currencyService)
 	tierHandler := handlers.NewTierHandler(tierService)
 	userHandler := handlers.NewUserHandler(userService, litellmClient)
+	rateLimitHandler := handlers.NewRateLimitHandler(rateLimitService)
 
 	// Инициализируем middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
 	// Инициализируем маршруты
-	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, authMiddleware)
+	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, rateLimitHandler, authMiddleware)
 
 	// Запускаем сервер
 	engine := router.SetupRoutes()

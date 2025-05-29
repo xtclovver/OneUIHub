@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
@@ -14,9 +14,11 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import { RootState } from '../../redux/store';
-import { fetchModelById } from '../../redux/slices/modelsSlice';
+import { fetchModelById, clearSelectedModel } from '../../redux/slices/modelsSlice';
+import { modelsAPI } from '../../api/models';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ModelCapabilities from '../../components/common/ModelCapabilities';
+import { RateLimit, Tier } from '../../types';
 
 const ModelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +29,11 @@ const ModelDetailPage: React.FC = () => {
     if (id) {
       dispatch(fetchModelById(id) as any);
     }
+    
+    // Очищаем выбранную модель при размонтировании компонента
+    return () => {
+      dispatch(clearSelectedModel());
+    };
   }, [dispatch, id]);
 
   const getModelIcon = (modelName: string) => {
@@ -46,7 +53,7 @@ const ModelDetailPage: React.FC = () => {
   };
 
   const getStatusBadge = () => {
-    if (!selectedModel?.config?.is_enabled) {
+    if (!selectedModel?.model_config?.is_enabled) {
       return (
         <span className="status-badge status-disabled">
           <XCircleIcon className="w-4 h-4 mr-1" />
@@ -55,7 +62,7 @@ const ModelDetailPage: React.FC = () => {
       );
     }
     
-    if (selectedModel?.config?.is_free) {
+    if (selectedModel?.model_config?.is_free) {
       return (
         <span className="status-badge status-free">
           <CheckCircleIcon className="w-4 h-4 mr-1" />
@@ -72,41 +79,25 @@ const ModelDetailPage: React.FC = () => {
     );
   };
 
-  // Моковые данные для лимитов по тирам
-  const rateLimits = [
-    {
-      tier: 'Free',
-      requestsPerMinute: 5,
-      requestsPerDay: 100,
-      tokensPerMinute: 10000,
-      tokensPerDay: 100000,
-      price: 0
-    },
-    {
-      tier: 'Starter',
-      requestsPerMinute: 10,
-      requestsPerDay: 300,
-      tokensPerMinute: 20000,
-      tokensPerDay: 300000,
-      price: 29
-    },
-    {
-      tier: 'Pro',
-      requestsPerMinute: 30,
-      requestsPerDay: 1000,
-      tokensPerMinute: 100000,
-      tokensPerDay: 1000000,
-      price: 99
-    },
-    {
-      tier: 'Enterprise',
-      requestsPerMinute: 60,
-      requestsPerDay: 2000,
-      tokensPerMinute: 200000,
-      tokensPerDay: 5000000,
-      price: 'Индивидуально'
-    }
-  ];
+  const [rateLimits, setRateLimits] = useState<RateLimit[]>([]);
+  const [tiers, setTiers] = useState<Tier[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [rateLimitsResponse, tiersResponse] = await Promise.all([
+          modelsAPI.getRateLimits(),
+          modelsAPI.getTiers()
+        ]);
+        setRateLimits(rateLimitsResponse.data.data);
+        setTiers(tiersResponse.data.data);
+      } catch (error) {
+        console.error('Ошибка при загрузке данных:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   if (isLoading) {
     return (
@@ -210,22 +201,23 @@ const ModelDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* Стоимость токенов */}
-          {selectedModel.config && !selectedModel.config.is_free && (
+          {/* Стоимость */}
+          {selectedModel.model_config && !selectedModel.model_config.is_free && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="glass-card p-4">
-                <h4 className="text-gray-900 font-medium mb-2">Входящие токены</h4>
-                <p className="text-2xl font-bold text-ai-orange">
-                  ${((selectedModel.config.input_token_cost || 0) * 1000).toFixed(6)}
+              <div className="glass-card p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Входные токены</h4>
+                <p className="text-3xl font-bold text-ai-orange">
+                  ${((selectedModel.model_config.input_token_cost || 0) * 1000).toFixed(6)}
                 </p>
-                <p className="text-ai-gray-400 text-sm">за 1,000 токенов</p>
+                <p className="text-sm text-ai-gray-400">за 1K токенов</p>
               </div>
-              <div className="glass-card p-4">
-                <h4 className="text-gray-900 font-medium mb-2">Исходящие токены</h4>
-                <p className="text-2xl font-bold text-ai-purple">
-                  ${((selectedModel.config.output_token_cost || 0) * 1000).toFixed(6)}
+              
+              <div className="glass-card p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Выходные токены</h4>
+                <p className="text-3xl font-bold text-ai-orange">
+                  ${((selectedModel.model_config.output_token_cost || 0) * 1000).toFixed(6)}
                 </p>
-                <p className="text-ai-gray-400 text-sm">за 1,000 токенов</p>
+                <p className="text-sm text-ai-gray-400">за 1K токенов</p>
               </div>
             </div>
           )}
@@ -270,43 +262,41 @@ const ModelDetailPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {rateLimits.map((limit, index) => (
-                  <motion.tr
-                    key={limit.tier}
-                    className="table-row"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                  >
-                    <td className="table-cell">
-                      <span className={`font-medium ${
-                        limit.tier === 'Pro' ? 'text-ai-orange' : 'text-gray-900'
-                      }`}>
-                        {limit.tier}
-                      </span>
-                      {limit.tier === 'Pro' && (
-                        <span className="ml-2 text-xs bg-ai-orange text-white px-2 py-1 rounded-full">
-                          Популярный
-                        </span>
-                      )}
-                    </td>
-                    <td className="table-cell text-center">{limit.requestsPerMinute.toLocaleString()}</td>
-                    <td className="table-cell text-center">{limit.requestsPerDay.toLocaleString()}</td>
-                    <td className="table-cell text-center">{limit.tokensPerMinute.toLocaleString()}</td>
-                    <td className="table-cell text-center">{limit.tokensPerDay.toLocaleString()}</td>
-                    <td className="table-cell text-center">
-                      {typeof limit.price === 'number' ? (
-                        limit.price === 0 ? (
-                          <span className="text-green-400 font-medium">Бесплатно</span>
-                        ) : (
-                          <span className="text-gray-900 font-medium">${limit.price}/мес</span>
-                        )
-                      ) : (
-                        <span className="text-ai-orange font-medium">{limit.price}</span>
-                      )}
-                    </td>
-                  </motion.tr>
-                ))}
+                {rateLimits
+                  .filter(limit => limit.model_id === selectedModel.id)
+                  .map((limit, index) => {
+                    const tier = tiers.find(t => t.id === limit.tier_id);
+                    return (
+                      <motion.tr
+                        key={limit.id}
+                        className="table-row"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.5, delay: index * 0.1 }}
+                      >
+                        <td className="table-cell">
+                          <span className={`font-medium ${
+                            tier?.name === 'Pro' ? 'text-ai-orange' : 'text-gray-900'
+                          }`}>
+                            {tier?.name || 'Неизвестный тариф'}
+                          </span>
+                          {tier?.name === 'Pro' && (
+                            <span className="ml-2 text-xs bg-ai-orange text-white px-2 py-1 rounded-full">
+                              Популярный
+                            </span>
+                          )}
+                        </td>
+                        <td className="table-cell text-center">{limit.requests_per_minute?.toLocaleString() || '∞'}</td>
+                        <td className="table-cell text-center">{limit.requests_per_day?.toLocaleString() || '∞'}</td>
+                        <td className="table-cell text-center">{limit.tokens_per_minute?.toLocaleString() || '∞'}</td>
+                        <td className="table-cell text-center">{limit.tokens_per_day?.toLocaleString() || '∞'}</td>
+                        <td className="table-cell text-center">
+                          {tier?.price === 0 ? 'Бесплатно' : 
+                           typeof tier?.price === 'number' ? `$${tier.price}` : tier?.price || 'Не указано'}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

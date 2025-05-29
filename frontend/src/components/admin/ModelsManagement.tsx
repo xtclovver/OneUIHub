@@ -20,8 +20,10 @@ import {
   syncModelsFromLiteLLM,
   syncModelsFromModelGroup,
   syncCompaniesFromLiteLLM,
+  adminAPI,
 } from '../../api/admin';
 import { ModelGroupInfo, CreateModelRequest, UpdateModelRequest } from '../../types/admin';
+import { RateLimit, Tier } from '../../types';
 
 // Добавляем интерфейс для модели из БД
 interface DBModel {
@@ -70,6 +72,8 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'groups' | 'models'>('groups');
   const [modelGroups, setModelGroups] = useState<ModelGroupInfo[]>([]);
   const [models, setModels] = useState<DBModel[]>([]);
+  const [rateLimits, setRateLimits] = useState<RateLimit[]>([]);
+  const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<DBModel | null>(null);
@@ -88,13 +92,19 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
     setLoading(true);
     setError(null);
     try {
+      const promises = [];
+      
       if (activeTab === 'groups') {
-        const response = await getModelGroupInfo();
-        setModelGroups(response.data);
+        promises.push(getModelGroupInfo().then(response => setModelGroups(response.data)));
       } else {
-        const response = await getAllModels();
-        setModels(response.data);
+        promises.push(getAllModels().then(response => setModels(response.data)));
       }
+      
+      // Всегда загружаем rate limits и tiers для редактора моделей
+      promises.push(adminAPI.getRateLimits().then(response => setRateLimits(response.data.data)));
+      promises.push(adminAPI.getTiers().then(response => setTiers(response.data.data)));
+      
+      await Promise.all(promises);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Произошла ошибка');
     } finally {
@@ -173,7 +183,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const renderModelGroups = () => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-gray-900">Группы моделей</h3>
+        <h3 className="text-lg font-medium text-gray-900">LiteLLM модели</h3>
         <div className="flex space-x-2">
           <button
             onClick={handleSyncFromModelGroup}
@@ -250,7 +260,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const renderModels = () => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-gray-900">Модели</h3>
+        <h3 className="text-lg font-medium text-gray-900">Модели в БД</h3>
         <div className="flex space-x-2">
           <button
             onClick={handleSync}
@@ -397,7 +407,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Группы моделей
+            LiteLLM модели
           </button>
           <button
             onClick={() => setActiveTab('models')}
@@ -407,7 +417,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Модели
+            Модели в БД
           </button>
         </nav>
       </div>
@@ -490,6 +500,8 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
       {showEditModal && selectedModel && (
         <EditModelModal
           model={selectedModel}
+          rateLimits={rateLimits}
+          tiers={tiers}
           onClose={() => {
             setShowEditModal(false);
             setSelectedModel(null);
@@ -596,9 +608,11 @@ const CreateModelModal: React.FC<{
 // Компонент для редактирования модели
 const EditModelModal: React.FC<{
   model: DBModel;
+  rateLimits: RateLimit[];
+  tiers: Tier[];
   onClose: () => void;
   onSubmit: (data: UpdateModelRequest) => void;
-}> = ({ model, onClose, onSubmit }) => {
+}> = ({ model, rateLimits, tiers, onClose, onSubmit }) => {
   const [formData, setFormData] = useState<UpdateModelRequest>({
     model_id: model.id,
     model_name: model.name,
@@ -614,136 +628,357 @@ const EditModelModal: React.FC<{
       // Стоимость токенов
       input_cost_per_token: model.model_config?.input_token_cost || 0,
       output_cost_per_token: model.model_config?.output_token_cost || 0,
-      cache_creation_input_token_cost: 0,
-      cache_read_input_token_cost: 0,
-      input_cost_per_character: 0,
-      input_cost_per_token_above_128k_tokens: 0,
-      input_cost_per_token_above_200k_tokens: 0,
-      input_cost_per_query: 0,
-      input_cost_per_second: 0,
-      input_cost_per_audio_token: 0,
-      input_cost_per_token_batches: 0,
-      output_cost_per_token_batches: 0,
-      output_cost_per_audio_token: 0,
-      output_cost_per_character: 0,
-      output_cost_per_reasoning_token: 0,
-      output_cost_per_token_above_128k_tokens: 0,
-      output_cost_per_character_above_128k_tokens: 0,
-      output_cost_per_token_above_200k_tokens: 0,
-      output_cost_per_second: 0,
-      output_cost_per_image: 0,
-      output_vector_size: 0,
-      search_context_cost_per_query: 0,
-      
-      // Лимиты
-      tpm: 0,
-      rpm: 0,
       
       // Поддержка функций
-      supports_system_messages: false,
-      supports_response_schema: false,
       supports_vision: model.supports_vision || false,
       supports_function_calling: model.supports_function_calling || false,
-      supports_tool_choice: false,
-      supports_assistant_prefill: false,
-      supports_prompt_caching: false,
-      supports_audio_input: false,
-      supports_audio_output: false,
-      supports_pdf_input: false,
-      supports_embedding_image_input: false,
-      supports_native_streaming: false,
       supports_web_search: model.supports_web_search || false,
       supports_reasoning: model.supports_reasoning || false,
-      
-      // OpenAI параметры
-      supported_openai_params: [model.supported_openai_params],
     },
   });
 
+  // Состояние для описания и особенностей
+  const [description, setDescription] = useState(model.description || '');
+  const [features, setFeatures] = useState(model.features || '');
+  const [isEnabled, setIsEnabled] = useState(model.model_config?.is_enabled || false);
+  const [isFree, setIsFree] = useState(model.model_config?.is_free || false);
+
+  // Получаем rate limits для этой модели
+  const modelRateLimits = rateLimits.filter(limit => limit.model_id === model.id);
+
+  // Состояние для редактирования rate limits
+  const [editingRateLimits, setEditingRateLimits] = useState<{[tierID: string]: RateLimit}>({});
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [selectedTierForRateLimit, setSelectedTierForRateLimit] = useState<string | null>(null);
+
+  // Инициализируем состояние rate limits
+  useEffect(() => {
+    const initialRateLimits: {[tierID: string]: RateLimit} = {};
+    
+    // Добавляем существующие rate limits
+    modelRateLimits.forEach(limit => {
+      initialRateLimits[limit.tier_id] = { ...limit };
+    });
+    
+    // Добавляем пустые rate limits для тарифов без лимитов
+    tiers.forEach(tier => {
+      if (!initialRateLimits[tier.id]) {
+        initialRateLimits[tier.id] = {
+          id: '',
+          model_id: model.id,
+          tier_id: tier.id,
+          requests_per_minute: 0,
+          requests_per_day: 0,
+          tokens_per_minute: 0,
+          tokens_per_day: 0,
+          created_at: '',
+          updated_at: '',
+          tier: tier
+        };
+      }
+    });
+    
+    setEditingRateLimits(initialRateLimits);
+  }, [modelRateLimits, tiers, model.id]);
+
+  const handleRateLimitChange = (tierID: string, field: keyof RateLimit, value: number) => {
+    setEditingRateLimits(prev => ({
+      ...prev,
+      [tierID]: {
+        ...prev[tierID],
+        [field]: value
+      }
+    }));
+  };
+
+  const saveRateLimit = async (tierID: string) => {
+    const rateLimit = editingRateLimits[tierID];
+    if (!rateLimit) return;
+
+    try {
+      if (rateLimit.id) {
+        // Обновляем существующий rate limit
+        await adminAPI.updateRateLimit(rateLimit.id, {
+          requests_per_minute: rateLimit.requests_per_minute,
+          requests_per_day: rateLimit.requests_per_day,
+          tokens_per_minute: rateLimit.tokens_per_minute,
+          tokens_per_day: rateLimit.tokens_per_day,
+        });
+      } else {
+        // Создаем новый rate limit
+        await adminAPI.createRateLimit({
+          model_id: model.id,
+          tier_id: tierID,
+          requests_per_minute: rateLimit.requests_per_minute,
+          requests_per_day: rateLimit.requests_per_day,
+          tokens_per_minute: rateLimit.tokens_per_minute,
+          tokens_per_day: rateLimit.tokens_per_day,
+        });
+      }
+      
+      // Обновляем данные
+      window.location.reload(); // Простое решение для обновления данных
+    } catch (error) {
+      console.error('Ошибка при сохранении rate limit:', error);
+      alert('Ошибка при сохранении лимитов');
+    }
+  };
+
+  const deleteRateLimit = async (tierID: string) => {
+    const rateLimit = editingRateLimits[tierID];
+    if (!rateLimit?.id) return;
+
+    if (!confirm('Вы уверены, что хотите удалить этот лимит?')) return;
+
+    try {
+      await adminAPI.deleteRateLimit(rateLimit.id);
+      
+      // Сбрасываем rate limit для этого тарифа
+      setEditingRateLimits(prev => ({
+        ...prev,
+        [tierID]: {
+          id: '',
+          model_id: model.id,
+          tier_id: tierID,
+          requests_per_minute: 0,
+          requests_per_day: 0,
+          tokens_per_minute: 0,
+          tokens_per_day: 0,
+          created_at: '',
+          updated_at: '',
+          tier: tiers.find(t => t.id === tierID)
+        }
+      }));
+    } catch (error) {
+      console.error('Ошибка при удалении rate limit:', error);
+      alert('Ошибка при удалении лимита');
+    }
+  };
+
+  // Функция для получения иконки модели
+  const getModelIcon = (modelName: string) => {
+    if (modelName.toLowerCase().includes('gpt') || modelName.toLowerCase().includes('openai')) {
+      return '🤖';
+    }
+    if (modelName.toLowerCase().includes('claude')) {
+      return '🧠';
+    }
+    if (modelName.toLowerCase().includes('gemini')) {
+      return '💎';
+    }
+    if (modelName.toLowerCase().includes('mistral')) {
+      return '🌪️';
+    }
+    return '⚡';
+  };
+
+  const getStatusBadge = () => {
+    if (!isEnabled) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <XCircleIcon className="w-4 h-4 mr-1" />
+          Недоступна
+        </span>
+      );
+    }
+    
+    if (isFree) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircleIcon className="w-4 h-4 mr-1" />
+          Бесплатно
+        </span>
+      );
+    }
+    
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <CpuChipIcon className="w-4 h-4 mr-1" />
+        Платно
+      </span>
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Обновляем formData с новыми значениями
+    const updatedFormData = {
+      ...formData,
+      model_name: formData.model_name,
+      // Добавляем описание и особенности в отдельные поля
+      description,
+      features,
+      model_config: {
+        is_enabled: isEnabled,
+        is_free: isFree,
+        input_token_cost: formData.model_info?.input_cost_per_token || 0,
+        output_token_cost: formData.model_info?.output_cost_per_token || 0,
+      }
+    };
+    onSubmit(updatedFormData);
   };
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Редактировать модель</h3>
+      <div className="relative top-10 mx-auto p-6 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
+        {/* Заголовок */}
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-900">Редактировать модель</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XCircleIcon className="h-6 w-6" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Основная информация */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-gray-900">Основная информация</h4>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Название модели
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Заголовок модели */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mr-4 text-2xl">
+                  {getModelIcon(formData.model_name || model.name)}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={formData.model_name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
+                    className="text-2xl font-bold text-gray-900 border-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 w-full"
+                    placeholder="Название модели"
+                  />
+                  <div className="flex items-center mt-2 text-sm text-gray-600">
+                    <span className="mr-4">ID: {model.external_id}</span>
+                    <span>Компания: {model.company?.name || 'Не указана'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                {getStatusBadge()}
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={isEnabled}
+                    onChange={(e) => setIsEnabled(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Включена</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={isFree}
+                    onChange={(e) => setIsFree(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Бесплатная</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Описание */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Описание
               </label>
-              <input
-                type="text"
-                value={formData.model_name || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
                 className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Описание модели..."
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Режим
-                </label>
-                <select
-                  value={formData.model_info?.mode || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      mode: e.target.value 
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Выберите режим</option>
-                  <option value="chat">Chat</option>
-                  <option value="completion">Completion</option>
-                  <option value="embedding">Embedding</option>
-                  <option value="image_generation">Image Generation</option>
-                </select>
-              </div>
+            {/* Особенности */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Особенности
+              </label>
+              <textarea
+                value={features}
+                onChange={(e) => setFeatures(e.target.value)}
+                rows={2}
+                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Особенности модели (через запятую)..."
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Провайдер LiteLLM
+            {/* Возможности модели */}
+            <div>
+              <h4 className="text-lg font-medium text-gray-900 mb-3">Возможности модели</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.model_info?.supports_vision || false}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      model_info: { 
+                        ...prev.model_info, 
+                        supports_vision: e.target.checked
+                      } 
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Видение</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.model_info?.litellm_provider || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      litellm_provider: e.target.value 
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Например, anthropic, openai"
-                />
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.model_info?.supports_function_calling || false}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      model_info: { 
+                        ...prev.model_info, 
+                        supports_function_calling: e.target.checked
+                      } 
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Функции</span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.model_info?.supports_reasoning || false}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      model_info: { 
+                        ...prev.model_info, 
+                        supports_reasoning: e.target.checked
+                      } 
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Рассуждения</span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.model_info?.supports_web_search || false}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      model_info: { 
+                        ...prev.model_info, 
+                        supports_web_search: e.target.checked
+                      } 
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Веб-поиск</span>
+                </label>
               </div>
             </div>
           </div>
-
-          {/* Стоимость */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-gray-900">Стоимость токенов</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Стоимость токенов */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Стоимость токенов</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Стоимость входных токенов (за 1 токен)
                 </label>
                 <input
@@ -760,10 +995,13 @@ const EditModelModal: React.FC<{
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0.000030"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Текущая: {formatCurrency(model.model_config?.input_token_cost || 0)}
+                </p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Стоимость выходных токенов (за 1 токен)
                 </label>
                 <input
@@ -780,121 +1018,15 @@ const EditModelModal: React.FC<{
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0.000060"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Текущая: {formatCurrency(model.model_config?.output_token_cost || 0)}
+                </p>
               </div>
             </div>
 
-            {/* Дополнительные стоимости */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Стоимость создания кэша (за токен)
-                </label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={formData.model_info?.cache_creation_input_token_cost || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      cache_creation_input_token_cost: e.target.value ? parseFloat(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000075"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Стоимость чтения кэша (за токен)
-                </label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={formData.model_info?.cache_read_input_token_cost || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      cache_read_input_token_cost: e.target.value ? parseFloat(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000003"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Стоимость рассуждений (за токен)
-                </label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={formData.model_info?.output_cost_per_reasoning_token || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      output_cost_per_reasoning_token: e.target.value ? parseFloat(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000240"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Стоимость аудио токенов (вход)
-                </label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={formData.model_info?.input_cost_per_audio_token || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      input_cost_per_audio_token: e.target.value ? parseFloat(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000100"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Лимиты токенов */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-gray-900">Лимиты токенов</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Максимум токенов за запрос
-                </label>
-                <input
-                  type="number"
-                  value={formData.model_info?.max_tokens || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      max_tokens: e.target.value ? parseInt(e.target.value) : 0
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="4096"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Максимум входных токенов
                 </label>
                 <input
@@ -910,10 +1042,13 @@ const EditModelModal: React.FC<{
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   placeholder="8192"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Текущий: {model.max_input_tokens ? formatNumber(model.max_input_tokens) : 'Не указано'}
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Максимум выходных токенов
                 </label>
                 <input
@@ -929,212 +1064,140 @@ const EditModelModal: React.FC<{
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   placeholder="4096"
                 />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Лимит токенов в минуту (TPM)
-                </label>
-                <input
-                  type="number"
-                  value={formData.model_info?.tpm || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      tpm: e.target.value ? parseInt(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="10000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Лимит запросов в минуту (RPM)
-                </label>
-                <input
-                  type="number"
-                  value={formData.model_info?.rpm || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      rpm: e.target.value ? parseInt(e.target.value) : null
-                    } 
-                  }))}
-                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="500"
-                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Текущий: {model.max_output_tokens ? formatNumber(model.max_output_tokens) : 'Не указано'}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Поддержка функций */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-gray-900">Поддержка функций</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_vision || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_vision: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Поддержка видения</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_function_calling || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_function_calling: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Вызов функций</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_tool_choice || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_tool_choice: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Выбор инструментов</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_web_search || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_web_search: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Веб-поиск</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_reasoning || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_reasoning: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Рассуждения</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_audio_input || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_audio_input: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Аудио вход</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_audio_output || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_audio_output: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Аудио выход</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_pdf_input || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_pdf_input: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">PDF вход</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.model_info?.supports_prompt_caching || false}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    model_info: { 
-                      ...prev.model_info, 
-                      supports_prompt_caching: e.target.checked
-                    } 
-                  }))}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                />
-                <span className="ml-2 text-sm text-gray-700">Кэширование промптов</span>
-              </label>
+          {/* Rate limits по тарифам */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Лимиты по тарифным планам</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Тариф</th>
+                    <th className="text-center py-2 px-3 text-sm font-medium text-gray-700">Запросов/мин</th>
+                    <th className="text-center py-2 px-3 text-sm font-medium text-gray-700">Запросов/день</th>
+                    <th className="text-center py-2 px-3 text-sm font-medium text-gray-700">Токенов/мин</th>
+                    <th className="text-center py-2 px-3 text-sm font-medium text-gray-700">Токенов/день</th>
+                    <th className="text-center py-2 px-3 text-sm font-medium text-gray-700">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tiers.map((tier) => {
+                    const rateLimit = editingRateLimits[tier.id];
+                    if (!rateLimit) return null;
+                    
+                    return (
+                      <tr key={tier.id} className="border-b border-gray-100">
+                        <td className="py-2 px-3 text-sm text-gray-900">
+                          <div className="flex items-center">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              tier.is_free 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {tier.name}
+                            </span>
+                            {tier.price > 0 && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                ${tier.price}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={rateLimit.requests_per_minute || ''}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_minute', parseInt(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={rateLimit.requests_per_day || ''}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_day', parseInt(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={rateLimit.tokens_per_minute || ''}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_minute', parseInt(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            value={rateLimit.tokens_per_day || ''}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_day', parseInt(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-sm text-center">
+                          <div className="flex justify-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => saveRateLimit(tier.id)}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                            >
+                              Сохранить
+                            </button>
+                            {rateLimit.id && (
+                              <button
+                                type="button"
+                                onClick={() => deleteRateLimit(tier.id)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                Удалить
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {tiers.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  Тарифы не настроены
+                </div>
+              )}
+            </div>
+            <div className="mt-4 text-sm text-gray-500">
+              <p>• Значение 0 означает отсутствие лимита</p>
+              <p>• Изменения сохраняются индивидуально для каждого тарифа</p>
             </div>
           </div>
-          
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+
+          {/* Кнопки управления */}
+          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Отмена
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Сохранить изменения
             </button>
@@ -1270,6 +1333,6 @@ const ModelDetailsModal: React.FC<{
       </div>
     </div>
   );
-  };
+};
   
-  export default ModelsManagement; 
+export default ModelsManagement; 

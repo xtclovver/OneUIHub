@@ -33,6 +33,12 @@ type UpdateModelRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Features    string `json:"features"`
+	ModelConfig *struct {
+		IsEnabled       *bool    `json:"is_enabled"`
+		IsFree          *bool    `json:"is_free"`
+		InputTokenCost  *float64 `json:"input_token_cost"`
+		OutputTokenCost *float64 `json:"output_token_cost"`
+	} `json:"model_config"`
 }
 
 type LiteLLMModelRequest struct {
@@ -178,7 +184,7 @@ func (h *ModelHandler) UpdateModel(c *gin.Context) {
 		return
 	}
 
-	// Обновляем поля
+	// Обновляем поля модели
 	if req.CompanyID != "" {
 		model.CompanyID = req.CompanyID
 	}
@@ -192,12 +198,28 @@ func (h *ModelHandler) UpdateModel(c *gin.Context) {
 		model.Features = req.Features
 	}
 
+	// Обновляем модель в БД
 	if err := h.modelService.UpdateModel(c.Request.Context(), model); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"model": model})
+	// Обновляем конфигурацию модели, если она передана
+	if req.ModelConfig != nil {
+		if err := h.modelService.UpdateModelConfig(c.Request.Context(), model.ID, req.ModelConfig.IsEnabled, req.ModelConfig.IsFree, req.ModelConfig.InputTokenCost, req.ModelConfig.OutputTokenCost); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update model config: " + err.Error()})
+			return
+		}
+	}
+
+	// Получаем обновленную модель с конфигурацией
+	updatedModel, err := h.modelService.GetModelByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get updated model"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"model": updatedModel})
 }
 
 func (h *ModelHandler) DeleteModel(c *gin.Context) {

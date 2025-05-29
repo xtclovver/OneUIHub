@@ -10,6 +10,7 @@ import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ProfilePage from './pages/Profile/ProfilePage';
 import ModelsPage from './pages/Models/ModelsPage';
+import ModelDetailPage from './pages/Models/ModelDetailPage';
 import CompaniesPage from './pages/Company/CompaniesPage';
 import CompanyDetailPage from './pages/Company/CompanyDetailPage';
 import AdminPage from './pages/Admin/AdminPage';
@@ -76,6 +77,7 @@ const App: React.FC = () => {
           <Route path="/companies" element={<CompaniesPage />} />
           <Route path="/companies/:id" element={<CompanyDetailPage />} />
           <Route path="/models" element={<ModelsPage />} />
+          <Route path="/models/:id" element={<ModelDetailPage />} />
           <Route path="/docs" element={<DocsPage />} />
           
           {/* Маршруты только для неавторизованных */}

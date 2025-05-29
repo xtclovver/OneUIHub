@@ -163,6 +163,14 @@ export interface CreateModelRequest {
 export interface UpdateModelRequest {
   model_id: string;
   model_name?: string;
+  description?: string;
+  features?: string;
+  model_config?: {
+    is_enabled?: boolean;
+    is_free?: boolean;
+    input_token_cost?: number;
+    output_token_cost?: number;
+  };
   model_info?: Partial<ModelInfo>;
 }
 

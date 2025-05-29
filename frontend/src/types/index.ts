@@ -54,7 +54,7 @@ export interface Model {
   
   created_at: string;
   updated_at: string;
-  config?: ModelConfig;
+  model_config?: ModelConfig;
   company?: Company;
 }
 

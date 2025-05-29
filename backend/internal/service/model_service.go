@@ -23,6 +23,7 @@ type ModelService interface {
 	GetModelByID(ctx context.Context, id string) (*domain.Model, error)
 	CreateModel(ctx context.Context, model *domain.Model) error
 	UpdateModel(ctx context.Context, model *domain.Model) error
+	UpdateModelConfig(ctx context.Context, modelID string, isEnabled *bool, isFree *bool, inputTokenCost *float64, outputTokenCost *float64) error
 	DeleteModel(ctx context.Context, id string) error
 
 	// CRUD операции для компаний
@@ -206,8 +207,56 @@ func (s *modelService) updateModelConfig(ctx context.Context, modelID string, in
 	}
 
 	// Обновляем существующую
-	config.InputTokenCost = inputCost
-	config.OutputTokenCost = outputCost
+	if inputCost != nil {
+		config.InputTokenCost = inputCost
+	}
+	if outputCost != nil {
+		config.OutputTokenCost = outputCost
+	}
+	return s.modelConfigRepo.Update(ctx, config)
+}
+
+func (s *modelService) updateModelConfigFull(ctx context.Context, modelID string, isEnabled *bool, isFree *bool, inputCost, outputCost *float64) error {
+	// Ищем существующую конфигурацию
+	config, err := s.modelConfigRepo.GetByModelID(ctx, modelID)
+	if err != nil && err != repository.ErrNotFound {
+		return fmt.Errorf("failed to get model config: %w", err)
+	}
+
+	if config == nil {
+		// Создаем новую конфигурацию
+		config = &domain.ModelConfig{
+			ID:              uuid.New().String(),
+			ModelID:         modelID,
+			IsFree:          false,
+			IsEnabled:       true,
+			InputTokenCost:  inputCost,
+			OutputTokenCost: outputCost,
+		}
+
+		if isEnabled != nil {
+			config.IsEnabled = *isEnabled
+		}
+		if isFree != nil {
+			config.IsFree = *isFree
+		}
+
+		return s.modelConfigRepo.Create(ctx, config)
+	}
+
+	// Обновляем существующую
+	if isEnabled != nil {
+		config.IsEnabled = *isEnabled
+	}
+	if isFree != nil {
+		config.IsFree = *isFree
+	}
+	if inputCost != nil {
+		config.InputTokenCost = inputCost
+	}
+	if outputCost != nil {
+		config.OutputTokenCost = outputCost
+	}
 	return s.modelConfigRepo.Update(ctx, config)
 }
 
@@ -230,6 +279,10 @@ func (s *modelService) CreateModel(ctx context.Context, model *domain.Model) err
 
 func (s *modelService) UpdateModel(ctx context.Context, model *domain.Model) error {
 	return s.modelRepo.Update(ctx, model)
+}
+
+func (s *modelService) UpdateModelConfig(ctx context.Context, modelID string, isEnabled *bool, isFree *bool, inputTokenCost *float64, outputTokenCost *float64) error {
+	return s.updateModelConfigFull(ctx, modelID, isEnabled, isFree, inputTokenCost, outputTokenCost)
 }
 
 func (s *modelService) DeleteModel(ctx context.Context, id string) error {

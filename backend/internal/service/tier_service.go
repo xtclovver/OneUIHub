@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"oneui-hub/internal/domain"
 	"oneui-hub/internal/repository"
 )
@@ -14,6 +16,12 @@ type TierService interface {
 	GetAllTiers(ctx context.Context) ([]domain.Tier, error)
 	UpdateUserSpending(ctx context.Context, userID string, amount float64) error
 	GetUserSpending(ctx context.Context, userID string) (*domain.UserSpending, error)
+
+	// Административные методы
+	GetTierByID(ctx context.Context, id string) (*domain.Tier, error)
+	CreateTier(ctx context.Context, req *CreateTierRequest) (*domain.Tier, error)
+	UpdateTier(ctx context.Context, tier *domain.Tier) error
+	DeleteTier(ctx context.Context, id string) error
 }
 
 type tierService struct {
@@ -28,6 +36,13 @@ func NewTierService(tierRepo repository.TierRepository, userRepo repository.User
 		userRepo:         userRepo,
 		userSpendingRepo: userSpendingRepo,
 	}
+}
+
+type CreateTierRequest struct {
+	Name        string  `json:"name" validate:"required"`
+	Description string  `json:"description"`
+	IsFree      bool    `json:"is_free"`
+	Price       float64 `json:"price" validate:"min=0"`
 }
 
 func (s *tierService) GetUserTier(ctx context.Context, userID string) (*domain.Tier, error) {
@@ -128,4 +143,77 @@ func (s *tierService) GetUserSpending(ctx context.Context, userID string) (*doma
 	}
 
 	return spending, nil
+}
+
+// Административные методы
+
+func (s *tierService) GetTierByID(ctx context.Context, id string) (*domain.Tier, error) {
+	tier, err := s.tierRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tier by ID: %w", err)
+	}
+
+	return tier, nil
+}
+
+func (s *tierService) CreateTier(ctx context.Context, req *CreateTierRequest) (*domain.Tier, error) {
+	// Проверяем, что тариф с таким именем не существует
+	existingTier, err := s.tierRepo.GetByName(ctx, req.Name)
+	if err == nil && existingTier != nil {
+		return nil, fmt.Errorf("tier with name %s already exists", req.Name)
+	}
+
+	tier := &domain.Tier{
+		ID:          uuid.New().String(),
+		Name:        req.Name,
+		Description: req.Description,
+		IsFree:      req.IsFree,
+		Price:       req.Price,
+	}
+
+	if err := s.tierRepo.Create(ctx, tier); err != nil {
+		return nil, fmt.Errorf("failed to create tier: %w", err)
+	}
+
+	return s.tierRepo.GetByID(ctx, tier.ID)
+}
+
+func (s *tierService) UpdateTier(ctx context.Context, tier *domain.Tier) error {
+	// Проверяем, что тариф существует
+	_, err := s.tierRepo.GetByID(ctx, tier.ID)
+	if err != nil {
+		return fmt.Errorf("tier not found: %w", err)
+	}
+
+	if err := s.tierRepo.Update(ctx, tier); err != nil {
+		return fmt.Errorf("failed to update tier: %w", err)
+	}
+
+	return nil
+}
+
+func (s *tierService) DeleteTier(ctx context.Context, id string) error {
+	// Проверяем, что тариф существует
+	_, err := s.tierRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("tier not found: %w", err)
+	}
+
+	// Проверяем, что нет пользователей с этим тарифом
+	users, err := s.userRepo.List(ctx, 1, 0)
+	if err != nil {
+		return fmt.Errorf("failed to check users: %w", err)
+	}
+
+	for _, user := range users {
+		if user.TierID == id {
+			return fmt.Errorf("cannot delete tier: users are still using this tier")
+		}
+	}
+
+	if err := s.tierRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete tier: %w", err)
+	}
+
+	return nil
 }

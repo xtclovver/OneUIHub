@@ -32,19 +32,19 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
   };
 
   const getStatusBadge = () => {
-    if (!model.config?.is_enabled) {
+    if (!model.model_config?.is_enabled) {
       return (
         <span className="status-badge status-disabled">
-          <XCircleIcon className="w-3 h-3 mr-1" />
+          <XCircleIcon className="w-4 h-4 mr-1" />
           Недоступна
         </span>
       );
     }
     
-    if (model.config?.is_free) {
+    if (model.model_config?.is_free) {
       return (
         <span className="status-badge status-free">
-          <CheckCircleIcon className="w-3 h-3 mr-1" />
+          <CheckCircleIcon className="w-4 h-4 mr-1" />
           Бесплатно
         </span>
       );
@@ -52,7 +52,7 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
     
     return (
       <span className="status-badge status-paid">
-        <CurrencyDollarIcon className="w-3 h-3 mr-1" />
+        <CurrencyDollarIcon className="w-4 h-4 mr-1" />
         Платно
       </span>
     );
@@ -159,9 +159,9 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
           )}
 
           {/* Информация о стоимости */}
-          {model.config && (
+          {model.model_config && (
             <div className="space-y-2 mb-4">
-              {model.config.input_token_cost && model.config.output_token_cost && !currencyLoading ? (
+              {model.model_config.input_token_cost && model.model_config.output_token_cost && !currencyLoading ? (
                 <div className="space-y-3">
                   {/* Входящие токены */}
                   <div className="space-y-1">
@@ -173,15 +173,15 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                       <div className="text-gray-800 font-medium">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.input_token_cost * 1000 
-                            : model.config.input_token_cost * 1000000
+                            ? model.model_config.input_token_cost * 1000 
+                            : model.model_config.input_token_cost * 1000000
                         ).usd}
                       </div>
                       <div className="text-gray-600">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.input_token_cost * 1000 
-                            : model.config.input_token_cost * 1000000
+                            ? model.model_config.input_token_cost * 1000 
+                            : model.model_config.input_token_cost * 1000000
                         ).rub}
                       </div>
                     </div>
@@ -197,15 +197,15 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
                       <div className="text-gray-800 font-medium">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.output_token_cost * 1000 
-                            : model.config.output_token_cost * 1000000
+                            ? model.model_config.output_token_cost * 1000 
+                            : model.model_config.output_token_cost * 1000000
                         ).usd}
                       </div>
                       <div className="text-gray-600">
                         {getPriceInBothCurrencies(
                           pricePerThousand 
-                            ? model.config.output_token_cost * 1000 
-                            : model.config.output_token_cost * 1000000
+                            ? model.model_config.output_token_cost * 1000 
+                            : model.model_config.output_token_cost * 1000000
                         ).rub}
                       </div>
                     </div>
@@ -230,10 +230,10 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
             {/* Индикатор активности */}
             <div className="flex items-center space-x-1">
               <div className={`w-2 h-2 rounded-full ${
-                model.config?.is_enabled ? 'bg-green-400' : 'bg-red-400'
+                model.model_config?.is_enabled ? 'bg-green-400' : 'bg-red-400'
               }`}></div>
               <span className="text-xs text-gray-500">
-                {model.config?.is_enabled ? 'Активна' : 'Неактивна'}
+                {model.model_config?.is_enabled ? 'Активна' : 'Неактивна'}
               </span>
             </div>
           </div>
