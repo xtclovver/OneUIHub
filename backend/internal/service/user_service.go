@@ -87,9 +87,10 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 	}
 
 	// Создаем лимиты пользователя
+	balance := 0.0
 	userLimit := &domain.UserLimit{
 		UserID:  user.ID,
-		Balance: 0.0,
+		Balance: &balance,
 	}
 
 	if err := s.userLimitRepo.Create(ctx, userLimit); err != nil {
