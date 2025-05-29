@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CpuChipIcon,
   PlusIcon,
@@ -86,9 +86,9 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -110,7 +110,7 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const handleCreateModel = async (data: CreateModelRequest) => {
     try {
@@ -648,8 +648,7 @@ const EditModelModal: React.FC<{
 
   // Состояние для редактирования rate limits
   const [editingRateLimits, setEditingRateLimits] = useState<{[tierID: string]: RateLimit}>({});
-  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
-  const [selectedTierForRateLimit, setSelectedTierForRateLimit] = useState<string | null>(null);
+  const [savingRateLimit, setSavingRateLimit] = useState<{[tierID: string]: boolean}>({});
 
   // Инициализируем состояние rate limits
   useEffect(() => {
@@ -686,7 +685,7 @@ const EditModelModal: React.FC<{
       ...prev,
       [tierID]: {
         ...prev[tierID],
-        [field]: value
+        [field]: isNaN(value) ? 0 : value
       }
     }));
   };
@@ -695,18 +694,22 @@ const EditModelModal: React.FC<{
     const rateLimit = editingRateLimits[tierID];
     if (!rateLimit) return;
 
+    setSavingRateLimit(prev => ({ ...prev, [tierID]: true }));
+
     try {
+      let savedRateLimit: RateLimit;
       if (rateLimit.id) {
         // Обновляем существующий rate limit
-        await adminAPI.updateRateLimit(rateLimit.id, {
+        const response = await adminAPI.updateRateLimit(rateLimit.id, {
           requests_per_minute: rateLimit.requests_per_minute,
           requests_per_day: rateLimit.requests_per_day,
           tokens_per_minute: rateLimit.tokens_per_minute,
           tokens_per_day: rateLimit.tokens_per_day,
         });
+        savedRateLimit = response.data.data;
       } else {
         // Создаем новый rate limit
-        await adminAPI.createRateLimit({
+        const response = await adminAPI.createRateLimit({
           model_id: model.id,
           tier_id: tierID,
           requests_per_minute: rateLimit.requests_per_minute,
@@ -714,13 +717,24 @@ const EditModelModal: React.FC<{
           tokens_per_minute: rateLimit.tokens_per_minute,
           tokens_per_day: rateLimit.tokens_per_day,
         });
+        savedRateLimit = response.data.data;
       }
       
-      // Обновляем данные
-      window.location.reload(); // Простое решение для обновления данных
+      // Обновляем локальное состояние с сохраненными данными
+      setEditingRateLimits(prev => ({
+        ...prev,
+        [tierID]: {
+          ...savedRateLimit,
+          tier: tiers.find(t => t.id === tierID)
+        }
+      }));
+      
+      alert('Лимиты успешно сохранены');
     } catch (error) {
       console.error('Ошибка при сохранении rate limit:', error);
       alert('Ошибка при сохранении лимитов');
+    } finally {
+      setSavingRateLimit(prev => ({ ...prev, [tierID]: false }));
     }
   };
 
@@ -728,7 +742,7 @@ const EditModelModal: React.FC<{
     const rateLimit = editingRateLimits[tierID];
     if (!rateLimit?.id) return;
 
-    if (!confirm('Вы уверены, что хотите удалить этот лимит?')) return;
+    if (!window.confirm('Вы уверены, что хотите удалить этот лимит?')) return;
 
     try {
       await adminAPI.deleteRateLimit(rateLimit.id);
@@ -749,6 +763,8 @@ const EditModelModal: React.FC<{
           tier: tiers.find(t => t.id === tierID)
         }
       }));
+      
+      alert('Лимит успешно удален');
     } catch (error) {
       console.error('Ошибка при удалении rate limit:', error);
       alert('Ошибка при удалении лимита');
@@ -1113,9 +1129,9 @@ const EditModelModal: React.FC<{
                           <input
                             type="number"
                             min="0"
-                            value={rateLimit.requests_per_minute || ''}
+                            value={rateLimit.requests_per_minute === 0 ? '' : rateLimit.requests_per_minute}
                             onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_minute', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0"
                           />
                         </td>
@@ -1123,9 +1139,9 @@ const EditModelModal: React.FC<{
                           <input
                             type="number"
                             min="0"
-                            value={rateLimit.requests_per_day || ''}
+                            value={rateLimit.requests_per_day === 0 ? '' : rateLimit.requests_per_day}
                             onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_day', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0"
                           />
                         </td>
@@ -1133,9 +1149,9 @@ const EditModelModal: React.FC<{
                           <input
                             type="number"
                             min="0"
-                            value={rateLimit.tokens_per_minute || ''}
+                            value={rateLimit.tokens_per_minute === 0 ? '' : rateLimit.tokens_per_minute}
                             onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_minute', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0"
                           />
                         </td>
@@ -1143,9 +1159,9 @@ const EditModelModal: React.FC<{
                           <input
                             type="number"
                             min="0"
-                            value={rateLimit.tokens_per_day || ''}
+                            value={rateLimit.tokens_per_day === 0 ? '' : rateLimit.tokens_per_day}
                             onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_day', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm"
+                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0"
                           />
                         </td>
@@ -1154,15 +1170,17 @@ const EditModelModal: React.FC<{
                             <button
                               type="button"
                               onClick={() => saveRateLimit(tier.id)}
-                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                              disabled={savingRateLimit[tier.id]}
+                              className="text-green-600 hover:text-green-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Сохранить
+                              {savingRateLimit[tier.id] ? 'Сохранение...' : 'Сохранить'}
                             </button>
                             {rateLimit.id && (
                               <button
                                 type="button"
                                 onClick={() => deleteRateLimit(tier.id)}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                disabled={savingRateLimit[tier.id]}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Удалить
                               </button>

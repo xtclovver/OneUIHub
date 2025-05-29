@@ -12,7 +12,6 @@ import {
   UpdateModelRequest,
   CreateUserKeyRequest,
   UpdateUserKeyRequest,
-  Company,
 } from '../types/admin';
 
 const LITELLM_BASE_URL = 'http://localhost:4000';
