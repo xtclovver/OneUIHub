@@ -1,24 +1,34 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
+	"oneui-hub/internal/domain"
 	"oneui-hub/internal/litellm"
+	"oneui-hub/internal/repository"
 	"oneui-hub/internal/service"
 )
 
 type UserHandler struct {
 	userService   *service.UserService
 	litellmClient *litellm.Client
+	apiKeyRepo    repository.ApiKeyRepository
+	requestRepo   repository.RequestRepository
 }
 
-func NewUserHandler(userService *service.UserService, litellmClient *litellm.Client) *UserHandler {
+func NewUserHandler(userService *service.UserService, litellmClient *litellm.Client, apiKeyRepo repository.ApiKeyRepository, requestRepo repository.RequestRepository) *UserHandler {
 	return &UserHandler{
 		userService:   userService,
 		litellmClient: litellmClient,
+		apiKeyRepo:    apiKeyRepo,
+		requestRepo:   requestRepo,
 	}
 }
 
@@ -49,7 +59,7 @@ func (h *UserHandler) GetUserSpending(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetUserApiKeys получает API ключи пользователя (заглушка, так как в LiteLLM нет endpoint для получения ключей по userID)
+// GetUserApiKeys получает API ключи пользователя из локальной БД
 func (h *UserHandler) GetUserApiKeys(c *gin.Context) {
 	userID := c.Param("user_id")
 	if userID == "" {
@@ -57,9 +67,31 @@ func (h *UserHandler) GetUserApiKeys(c *gin.Context) {
 		return
 	}
 
-	// Пока что возвращаем пустой массив, так как LiteLLM не предоставляет метод для получения ключей по пользователю
-	// В реальном проекте нужно будет сохранять связь ключей с пользователями в своей БД
-	response := []map[string]interface{}{}
+	// Получаем ключи пользователя из локальной БД
+	apiKeys, err := h.apiKeyRepo.GetByUserID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get API keys"})
+		return
+	}
+
+	// Конвертируем в формат ответа
+	response := make([]map[string]interface{}, 0, len(apiKeys))
+	for _, key := range apiKeys {
+		keyData := map[string]interface{}{
+			"id":          key.ID,
+			"name":        key.Name,
+			"external_id": key.ExternalID,
+			"created_at":  key.CreatedAt.Format(time.RFC3339),
+			"is_active":   true,
+			"usage_count": 0, // TODO: получать из статистики LiteLLM
+		}
+
+		if key.ExpiresAt != nil {
+			keyData["expires_at"] = key.ExpiresAt.Format(time.RFC3339)
+		}
+
+		response = append(response, keyData)
+	}
 
 	c.JSON(http.StatusOK, response)
 }
@@ -89,15 +121,34 @@ func (h *UserHandler) CreateUserApiKey(c *gin.Context) {
 
 	keyResponse, err := h.litellmClient.CreateKey(c.Request.Context(), keyReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create API key"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create API key in LiteLLM"})
+		return
+	}
+
+	// Сохраняем информацию о ключе в локальную БД
+	keyHash := fmt.Sprintf("%x", sha256.Sum256([]byte(keyResponse.Key)))
+	apiKey := &domain.ApiKey{
+		ID:         uuid.New().String(),
+		UserID:     userID,
+		KeyHash:    keyHash,
+		ExternalID: keyResponse.KeyName,
+		Name:       req.Name,
+		CreatedAt:  time.Now(),
+	}
+
+	if err := h.apiKeyRepo.Create(c.Request.Context(), apiKey); err != nil {
+		// Если не удалось сохранить в БД, удаляем ключ из LiteLLM
+		_ = h.litellmClient.DeleteKey(c.Request.Context(), keyResponse.KeyName)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save API key"})
 		return
 	}
 
 	response := map[string]interface{}{
-		"id":          keyResponse.KeyName,
-		"name":        keyResponse.KeyName,
-		"api_key":     keyResponse.Key,
-		"created_at":  "2024-01-01T00:00:00Z", // LiteLLM не возвращает дату создания
+		"id":          apiKey.ID,
+		"name":        apiKey.Name,
+		"api_key":     keyResponse.Key, // Возвращаем ключ только при создании
+		"external_id": apiKey.ExternalID,
+		"created_at":  apiKey.CreatedAt.Format(time.RFC3339),
 		"is_active":   true,
 		"usage_count": 0,
 	}
@@ -113,8 +164,23 @@ func (h *UserHandler) DeleteUserApiKey(c *gin.Context) {
 		return
 	}
 
-	err := h.litellmClient.DeleteKey(c.Request.Context(), keyID)
+	// Получаем информацию о ключе из локальной БД
+	apiKey, err := h.apiKeyRepo.GetByID(c.Request.Context(), keyID)
 	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "API key not found"})
+		return
+	}
+
+	// Удаляем ключ из LiteLLM
+	if apiKey.ExternalID != "" {
+		if err := h.litellmClient.DeleteKey(c.Request.Context(), apiKey.ExternalID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete API key from LiteLLM"})
+			return
+		}
+	}
+
+	// Удаляем ключ из локальной БД
+	if err := h.apiKeyRepo.Delete(c.Request.Context(), keyID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete API key"})
 		return
 	}
@@ -240,7 +306,7 @@ func (h *UserHandler) GetUsageStats(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetRequestHistory получает историю запросов (заглушка)
+// GetRequestHistory получает историю запросов из LiteLLM
 func (h *UserHandler) GetRequestHistory(c *gin.Context) {
 	userID := c.Param("user_id")
 	if userID == "" {
@@ -251,12 +317,44 @@ func (h *UserHandler) GetRequestHistory(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	// LiteLLM не предоставляет подробную историю запросов через API
-	// В реальном проекте это нужно будет логировать отдельно
-	response := []map[string]interface{}{}
+	// Получаем логи запросов из LiteLLM
+	spendLogs, err := h.litellmClient.GetSpendLogs(c.Request.Context(), userID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get request history"})
+		return
+	}
 
-	_ = limit
-	_ = offset
+	// Конвертируем в формат ответа
+	response := make([]map[string]interface{}, 0, len(spendLogs.Data))
+	for _, log := range spendLogs.Data {
+		requestData := map[string]interface{}{
+			"id":            log.RequestID,
+			"model":         log.Model,
+			"model_group":   log.ModelGroup,
+			"user_id":       log.UserID,
+			"team_id":       log.TeamID,
+			"api_key":       log.APIKey,
+			"request_tags":  log.RequestTags,
+			"cost":          log.Spend,
+			"total_tokens":  log.TotalTokens,
+			"input_tokens":  log.PromptTokens,
+			"output_tokens": log.CompletionTokens,
+			"start_time":    log.StartTime.Format(time.RFC3339),
+			"end_time":      log.EndTime.Format(time.RFC3339),
+			"status_code":   log.StatusCode,
+			"created_at":    log.StartTime.Format(time.RFC3339),
+		}
+
+		// Добавляем данные запроса и ответа если они есть
+		if log.RequestData != nil {
+			requestData["request_data"] = log.RequestData
+		}
+		if log.ResponseData != nil {
+			requestData["response_data"] = log.ResponseData
+		}
+
+		response = append(response, requestData)
+	}
 
 	c.JSON(http.StatusOK, response)
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, CreditCard, Activity, Settings, Key, DollarSign } from 'lucide-react';
+import { User, CreditCard, Activity, Settings, Key, DollarSign, Copy, Check } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { 
@@ -9,7 +9,8 @@ import {
   fetchUsageStats, 
   fetchRequestHistory,
   createApiKey,
-  deactivateApiKey
+  deactivateApiKey,
+  clearNewApiKey
 } from '../../redux/slices/litellmSlice';
 
 interface UserProfile {
@@ -41,8 +42,9 @@ interface UserProfile {
 const ProfilePage: React.FC = () => {
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState('overview');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { user } = useSelector((state: RootState) => state.auth);
-  const { usage, apiKeys, budget, usageStats, requestHistory, isLoading } = useSelector((state: RootState) => state.litellm);
+  const { usage, apiKeys, budget, usageStats, requestHistory, isLoading, newApiKey } = useSelector((state: RootState) => state.litellm);
 
   useEffect(() => {
     if (user?.id) {
@@ -54,6 +56,29 @@ const ProfilePage: React.FC = () => {
       dispatch(fetchRequestHistory({ userId: user.id, limit: 50 }) as any);
     }
   }, [user?.id, dispatch]);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(text);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const handleCreateApiKey = () => {
+    if (user?.id) {
+      const name = prompt('Введите название ключа:');
+      if (name) {
+        dispatch(createApiKey({ userId: user.id, name }) as any);
+      }
+    }
+  };
+
+  const handleCloseNewKeyDialog = () => {
+    dispatch(clearNewApiKey());
+  };
 
   const tabs = [
     { id: 'overview', label: 'Обзор', icon: User },
@@ -204,99 +229,67 @@ const ProfilePage: React.FC = () => {
 
           {activeTab === 'requests' && (
             <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">История запросов</h3>
-                <div className="flex space-x-2">
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-                    <option value="">Все модели</option>
-                    <option value="gpt-4">GPT-4</option>
-                    <option value="claude-3">Claude 3</option>
-                  </select>
-                  <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-                    <option value="7">Последние 7 дней</option>
-                    <option value="30">Последние 30 дней</option>
-                    <option value="90">Последние 90 дней</option>
-                  </select>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">История запросов</h3>
+              {requestHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Нет истории запросов</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Ваши запросы к AI моделям будут отображаться здесь
+                  </p>
                 </div>
-              </div>
-              
-              {/* Статистика запросов */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">1,234</div>
-                  <div className="text-sm text-blue-600">Всего запросов</div>
+              ) : (
+                <div className="space-y-4">
+                  {requestHistory.map((request, index) => (
+                    <div key={request.id || index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {request.model || request.model_group}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            {new Date(request.created_at).toLocaleString('ru-RU')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">
+                            ${request.cost?.toFixed(6) || '0.000000'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {request.total_tokens || 0} токенов
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Входящие токены:</span>
+                          <span className="ml-1 font-medium">{request.input_tokens || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Исходящие токены:</span>
+                          <span className="ml-1 font-medium">{request.output_tokens || 0}</span>
+                        </div>
+                        {request.status_code && (
+                          <div>
+                            <span className="text-gray-500">Статус:</span>
+                            <span className={`ml-1 font-medium ${
+                              request.status_code === 200 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {request.status_code}
+                            </span>
+                          </div>
+                        )}
+                        {request.request_tags && request.request_tags.length > 0 && (
+                          <div>
+                            <span className="text-gray-500">Теги:</span>
+                            <span className="ml-1">{request.request_tags.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">1,180</div>
-                  <div className="text-sm text-green-600">Успешных</div>
-                </div>
-                <div className="bg-red-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">54</div>
-                  <div className="text-sm text-red-600">Ошибок</div>
-                </div>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">156ms</div>
-                  <div className="text-sm text-yellow-600">Среднее время</div>
-                </div>
-              </div>
-
-              {/* Таблица запросов */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Время
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Модель
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Токены
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Стоимость
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Статус
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {/* Моковые данные для демонстрации */}
-                    {[
-                      { time: '14:32', model: 'GPT-4', tokens: '1,250', cost: '$0.025', status: 'success' },
-                      { time: '14:28', model: 'Claude 3', tokens: '890', cost: '$0.018', status: 'success' },
-                      { time: '14:15', model: 'GPT-3.5', tokens: '2,100', cost: '$0.004', status: 'error' },
-                      { time: '13:45', model: 'GPT-4', tokens: '750', cost: '$0.015', status: 'success' },
-                    ].map((request, idx) => (
-                      <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.time}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.model}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.tokens}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.cost}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            request.status === 'success' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {request.status === 'success' ? 'Успешно' : 'Ошибка'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              )}
             </div>
           )}
 
@@ -331,14 +324,7 @@ const ProfilePage: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">API ключи</h3>
                 <button 
-                  onClick={() => {
-                    if (user?.id) {
-                      const name = prompt('Введите название ключа:');
-                      if (name) {
-                        dispatch(createApiKey({ userId: user.id, name }) as any);
-                      }
-                    }
-                  }}
+                  onClick={handleCreateApiKey}
                   className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
                 >
                   Создать ключ
@@ -409,6 +395,61 @@ const ProfilePage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Модальное окно для показа нового API ключа */}
+      {newApiKey && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <Key className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">
+                API ключ создан!
+              </h3>
+              <div className="mt-4 px-7 py-3">
+                <p className="text-sm text-gray-500 mb-4">
+                  Сохраните этот ключ в безопасном месте. Он больше не будет показан.
+                </p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={newApiKey.api_key || ''}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm bg-gray-50"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(newApiKey.api_key || '')}
+                    className="absolute right-2 top-2 p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    {copiedKey === newApiKey.api_key ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="mt-4 text-left">
+                  <p className="text-sm text-gray-600">
+                    <strong>Название:</strong> {newApiKey.name}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Создан:</strong> {new Date(newApiKey.created_at).toLocaleString('ru-RU')}
+                  </p>
+                </div>
+              </div>
+              <div className="items-center px-4 py-3">
+                <button
+                  onClick={handleCloseNewKeyDialog}
+                  className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

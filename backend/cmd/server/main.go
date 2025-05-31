@@ -48,6 +48,8 @@ func main() {
 	exchangeRateRepo := repository.NewExchangeRateRepository(db.DB)
 	userSpendingRepo := repository.NewUserSpendingRepository(db.DB)
 	rateLimitRepo := repository.NewRateLimitRepository(db.DB)
+	apiKeyRepo := repository.NewApiKeyRepository(db.DB)
+	requestRepo := repository.NewRequestRepository(db.DB)
 
 	userService := service.NewUserService(userRepo, userLimitRepo, tierRepo)
 	modelService := service.NewModelService(modelRepo, companyRepo, modelConfigRepo, litellmClient)
@@ -62,7 +64,7 @@ func main() {
 	budgetHandler := handlers.NewBudgetHandler(budgetService)
 	currencyHandler := handlers.NewCurrencyHandler(currencyService)
 	tierHandler := handlers.NewTierHandler(tierService)
-	userHandler := handlers.NewUserHandler(userService, litellmClient)
+	userHandler := handlers.NewUserHandler(userService, litellmClient, apiKeyRepo, requestRepo)
 	rateLimitHandler := handlers.NewRateLimitHandler(rateLimitService)
 	uploadHandler := handlers.NewUploadHandler()
 

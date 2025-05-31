@@ -26,10 +26,15 @@ export const formatLimitEditValue = (value: number): string => {
  * @returns Числовое значение для сохранения
  */
 export const parseLimitValue = (value: string): number => {
-  if (value === '' || value === '0') return 0;
+  // Пустая строка = 0 (без лимита)
+  if (!value || value.trim() === '') return 0;
+  
+  // Бесконечность
   if (value === '∞' || value === '-1') return -1;
-  const parsed = parseInt(value);
-  return isNaN(parsed) ? 0 : parsed;
+  
+  // Парсим число
+  const num = parseInt(value, 10);
+  return isNaN(num) ? 0 : Math.max(0, num);
 };
 
 /**

@@ -16,8 +16,10 @@ export interface LiteLLMUsage {
 export interface LiteLLMApiKey {
   id: string;
   name: string;
-  api_key: string;
+  api_key?: string;
+  external_id?: string;
   created_at: string;
+  expires_at?: string;
   last_used?: string;
   is_active: boolean;
   usage_count: number;

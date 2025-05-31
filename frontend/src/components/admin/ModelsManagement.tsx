@@ -83,6 +83,13 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
+  // Состояние для редактирования rate limits
+  const [editingRateLimits, setEditingRateLimits] = useState<{[tierID: string]: RateLimit}>({});
+  const [savingRateLimit, setSavingRateLimit] = useState<{[tierID: string]: boolean}>({});
+  
+  // Простое состояние для строковых значений input'ов
+  const [inputValues, setInputValues] = useState<{[key: string]: string}>({});
+
   useEffect(() => {
     loadData();
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -651,14 +658,24 @@ const EditModelModal: React.FC<{
   // Состояние для редактирования rate limits
   const [editingRateLimits, setEditingRateLimits] = useState<{[tierID: string]: RateLimit}>({});
   const [savingRateLimit, setSavingRateLimit] = useState<{[tierID: string]: boolean}>({});
+  
+  // Простое состояние для строковых значений input'ов
+  const [inputValues, setInputValues] = useState<{[key: string]: string}>({});
 
   // Инициализируем состояние rate limits
   useEffect(() => {
     const initialRateLimits: {[tierID: string]: RateLimit} = {};
+    const initialInputs: {[key: string]: string} = {};
     
     // Добавляем существующие rate limits
     modelRateLimits.forEach(limit => {
       initialRateLimits[limit.tier_id] = { ...limit };
+      
+      // Инициализируем строковые значения
+      initialInputs[`${limit.tier_id}_requests_per_minute`] = limit.requests_per_minute === 0 ? '' : limit.requests_per_minute === -1 ? '∞' : limit.requests_per_minute.toString();
+      initialInputs[`${limit.tier_id}_requests_per_day`] = limit.requests_per_day === 0 ? '' : limit.requests_per_day === -1 ? '∞' : limit.requests_per_day.toString();
+      initialInputs[`${limit.tier_id}_tokens_per_minute`] = limit.tokens_per_minute === 0 ? '' : limit.tokens_per_minute === -1 ? '∞' : limit.tokens_per_minute.toString();
+      initialInputs[`${limit.tier_id}_tokens_per_day`] = limit.tokens_per_day === 0 ? '' : limit.tokens_per_day === -1 ? '∞' : limit.tokens_per_day.toString();
     });
     
     // Добавляем пустые rate limits для тарифов без лимитов
@@ -676,32 +693,48 @@ const EditModelModal: React.FC<{
           updated_at: '',
           tier: tier
         };
+        
+        // Пустые строковые значения
+        initialInputs[`${tier.id}_requests_per_minute`] = '';
+        initialInputs[`${tier.id}_requests_per_day`] = '';
+        initialInputs[`${tier.id}_tokens_per_minute`] = '';
+        initialInputs[`${tier.id}_tokens_per_day`] = '';
       }
     });
     
     setEditingRateLimits(initialRateLimits);
+    setInputValues(initialInputs);
   }, [modelRateLimits, tiers, model.id]);
 
+  const handleRateLimitChange = useCallback((tierID: string, field: keyof RateLimit, value: string) => {
+    const inputKey = `${tierID}_${field}`;
+    
+    // Просто обновляем строковое значение
+    setInputValues(prev => ({
+      ...prev,
+      [inputKey]: value
+    }));
+  }, []);
+
   // Функция для форматирования значения лимита для отображения
-  const formatLimitValue = formatLimitEditValue;
+  const formatLimitValue = (value: number): string => {
+    if (value === -1) return '∞';
+    if (value === 0) return '';
+    return value.toString();
+  };
 
   // Функция для обработки ввода значения лимита
   const parseLimitValueLocal = parseLimitValue;
 
-  const handleRateLimitChange = (tierID: string, field: keyof RateLimit, value: string) => {
-    const numericValue = parseLimitValueLocal(value);
-    setEditingRateLimits(prev => ({
-      ...prev,
-      [tierID]: {
-        ...prev[tierID],
-        [field]: numericValue
-      }
-    }));
-  };
-
   const saveRateLimit = async (tierID: string) => {
     const rateLimit = editingRateLimits[tierID];
     if (!rateLimit) return;
+
+    // Парсим значения из строковых input'ов
+    const requestsPerMinute = parseLimitValueLocal(inputValues[`${tierID}_requests_per_minute`] || '');
+    const requestsPerDay = parseLimitValueLocal(inputValues[`${tierID}_requests_per_day`] || '');
+    const tokensPerMinute = parseLimitValueLocal(inputValues[`${tierID}_tokens_per_minute`] || '');
+    const tokensPerDay = parseLimitValueLocal(inputValues[`${tierID}_tokens_per_day`] || '');
 
     setSavingRateLimit(prev => ({ ...prev, [tierID]: true }));
 
@@ -710,10 +743,10 @@ const EditModelModal: React.FC<{
       if (rateLimit.id) {
         // Обновляем существующий rate limit
         const response = await adminAPI.updateRateLimit(rateLimit.id, {
-          requests_per_minute: rateLimit.requests_per_minute,
-          requests_per_day: rateLimit.requests_per_day,
-          tokens_per_minute: rateLimit.tokens_per_minute,
-          tokens_per_day: rateLimit.tokens_per_day,
+          requests_per_minute: requestsPerMinute,
+          requests_per_day: requestsPerDay,
+          tokens_per_minute: tokensPerMinute,
+          tokens_per_day: tokensPerDay,
         });
         savedRateLimit = response.data.data;
       } else {
@@ -721,10 +754,10 @@ const EditModelModal: React.FC<{
         const response = await adminAPI.createRateLimit({
           model_id: model.id,
           tier_id: tierID,
-          requests_per_minute: rateLimit.requests_per_minute,
-          requests_per_day: rateLimit.requests_per_day,
-          tokens_per_minute: rateLimit.tokens_per_minute,
-          tokens_per_day: rateLimit.tokens_per_day,
+          requests_per_minute: requestsPerMinute,
+          requests_per_day: requestsPerDay,
+          tokens_per_minute: tokensPerMinute,
+          tokens_per_day: tokensPerDay,
         });
         savedRateLimit = response.data.data;
       }
@@ -736,6 +769,15 @@ const EditModelModal: React.FC<{
           ...savedRateLimit,
           tier: tiers.find(t => t.id === tierID)
         }
+      }));
+      
+      // Обновляем строковые значения с сохраненными данными
+      setInputValues(prev => ({
+        ...prev,
+        [`${tierID}_requests_per_minute`]: savedRateLimit.requests_per_minute === 0 ? '' : savedRateLimit.requests_per_minute === -1 ? '∞' : savedRateLimit.requests_per_minute.toString(),
+        [`${tierID}_requests_per_day`]: savedRateLimit.requests_per_day === 0 ? '' : savedRateLimit.requests_per_day === -1 ? '∞' : savedRateLimit.requests_per_day.toString(),
+        [`${tierID}_tokens_per_minute`]: savedRateLimit.tokens_per_minute === 0 ? '' : savedRateLimit.tokens_per_minute === -1 ? '∞' : savedRateLimit.tokens_per_minute.toString(),
+        [`${tierID}_tokens_per_day`]: savedRateLimit.tokens_per_day === 0 ? '' : savedRateLimit.tokens_per_day === -1 ? '∞' : savedRateLimit.tokens_per_day.toString()
       }));
       
       alert('Лимиты успешно сохранены');
@@ -771,6 +813,15 @@ const EditModelModal: React.FC<{
           updated_at: '',
           tier: tiers.find(t => t.id === tierID)
         }
+      }));
+      
+      // Сбрасываем строковые значения
+      setInputValues(prev => ({
+        ...prev,
+        [`${tierID}_requests_per_minute`]: '',
+        [`${tierID}_requests_per_day`]: '',
+        [`${tierID}_tokens_per_minute`]: '',
+        [`${tierID}_tokens_per_day`]: ''
       }));
       
       alert('Лимит успешно удален');
@@ -1161,7 +1212,7 @@ const EditModelModal: React.FC<{
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
                             type="text"
-                            value={formatLimitValue(rateLimit.requests_per_minute)}
+                            value={inputValues[`${tier.id}_requests_per_minute`] || ''}
                             onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_minute', e.target.value)}
                             className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0 или ∞"
@@ -1171,7 +1222,7 @@ const EditModelModal: React.FC<{
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
                             type="text"
-                            value={formatLimitValue(rateLimit.requests_per_day)}
+                            value={inputValues[`${tier.id}_requests_per_day`] || ''}
                             onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_day', e.target.value)}
                             className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0 или ∞"
@@ -1181,7 +1232,7 @@ const EditModelModal: React.FC<{
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
                             type="text"
-                            value={formatLimitValue(rateLimit.tokens_per_minute)}
+                            value={inputValues[`${tier.id}_tokens_per_minute`] || ''}
                             onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_minute', e.target.value)}
                             className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0 или ∞"
@@ -1191,7 +1242,7 @@ const EditModelModal: React.FC<{
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
                             type="text"
-                            value={formatLimitValue(rateLimit.tokens_per_day)}
+                            value={inputValues[`${tier.id}_tokens_per_day`] || ''}
                             onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_day', e.target.value)}
                             className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0 или ∞"

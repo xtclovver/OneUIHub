@@ -9,6 +9,7 @@ interface LiteLLMState {
   requestHistory: any[];
   isLoading: boolean;
   error: string | null;
+  newApiKey: LiteLLMApiKey | null;
 }
 
 const initialState: LiteLLMState = {
@@ -19,6 +20,7 @@ const initialState: LiteLLMState = {
   requestHistory: [],
   isLoading: false,
   error: null,
+  newApiKey: null,
 };
 
 // Async thunks
@@ -118,12 +120,16 @@ const litellmSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearNewApiKey: (state) => {
+      state.newApiKey = null;
+    },
     clearData: (state) => {
       state.usage = null;
       state.apiKeys = [];
       state.budget = null;
       state.usageStats = null;
       state.requestHistory = [];
+      state.newApiKey = null;
     },
   },
   extraReducers: (builder) => {
@@ -164,6 +170,7 @@ const litellmSlice = createSlice({
       .addCase(createApiKey.fulfilled, (state, action) => {
         state.isLoading = false;
         state.apiKeys.push(action.payload);
+        state.newApiKey = action.payload;
       })
       .addCase(createApiKey.rejected, (state, action) => {
         state.isLoading = false;
@@ -197,5 +204,5 @@ const litellmSlice = createSlice({
   },
 });
 
-export const { clearError, clearData } = litellmSlice.actions;
+export const { clearError, clearNewApiKey, clearData } = litellmSlice.actions;
 export default litellmSlice.reducer; 

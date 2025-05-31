@@ -135,6 +135,31 @@ type LiteLLMUsageResponse struct {
 	Model       string  `json:"model"`
 }
 
+// Структуры для логов запросов
+type LiteLLMSpendLogEntry struct {
+	RequestID        string                 `json:"request_id"`
+	APIKey           string                 `json:"api_key"`
+	Model            string                 `json:"model"`
+	UserID           string                 `json:"user_id"`
+	TeamID           string                 `json:"team_id"`
+	RequestTags      []string               `json:"request_tags"`
+	Spend            float64                `json:"spend"`
+	TotalTokens      int                    `json:"total_tokens"`
+	PromptTokens     int                    `json:"prompt_tokens"`
+	CompletionTokens int                    `json:"completion_tokens"`
+	StartTime        time.Time              `json:"startTime"`
+	EndTime          time.Time              `json:"endTime"`
+	APIBase          string                 `json:"api_base"`
+	ModelGroup       string                 `json:"model_group"`
+	StatusCode       int                    `json:"status_code"`
+	RequestData      map[string]interface{} `json:"request_data,omitempty"`
+	ResponseData     map[string]interface{} `json:"response_data,omitempty"`
+}
+
+type LiteLLMSpendLogsResponse struct {
+	Data []LiteLLMSpendLogEntry `json:"data"`
+}
+
 func NewClient(cfg *config.LiteLLMConfig) *Client {
 	return &Client{
 		baseURL: cfg.BaseURL,
@@ -486,4 +511,48 @@ func (c *Client) doRequest(req *http.Request, result interface{}) error {
 	}
 
 	return nil
+}
+
+func (c *Client) GetSpendLogs(ctx context.Context, userID string, limit, offset int) (*LiteLLMSpendLogsResponse, error) {
+	endpoint := fmt.Sprintf("/spend/logs?user_id=%s&limit=%d&offset=%d", userID, limit, offset)
+	req, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMSpendLogsResponse
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get spend logs: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *Client) GetKeyInfo(ctx context.Context, keyID string) (map[string]interface{}, error) {
+	reqBody := map[string]string{"key": keyID}
+	req, err := c.newRequest(ctx, "POST", "/key/info", reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response map[string]interface{}
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get key info: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *Client) ListKeys(ctx context.Context) ([]map[string]interface{}, error) {
+	req, err := c.newRequest(ctx, "GET", "/key/list", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response []map[string]interface{}
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to list keys: %w", err)
+	}
+
+	return response, nil
 }
