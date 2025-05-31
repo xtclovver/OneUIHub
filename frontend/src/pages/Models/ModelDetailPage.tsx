@@ -21,6 +21,7 @@ import ModelCapabilities from '../../components/common/ModelCapabilities';
 import { RateLimit, Tier } from '../../types';
 import { useCurrency } from '../../hooks/useCurrency';
 import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
+import { formatLimitValue } from '../../utils/formatUtils';
 
 const ModelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -317,10 +318,10 @@ const ModelDetailPage: React.FC = () => {
                             </span>
                           )}
                         </td>
-                        <td className="table-cell text-center">{limit.requests_per_minute?.toLocaleString() || '∞'}</td>
-                        <td className="table-cell text-center">{limit.requests_per_day?.toLocaleString() || '∞'}</td>
-                        <td className="table-cell text-center">{limit.tokens_per_minute?.toLocaleString() || '∞'}</td>
-                        <td className="table-cell text-center">{limit.tokens_per_day?.toLocaleString() || '∞'}</td>
+                        <td className="table-cell text-center">{formatLimitValue(limit.requests_per_minute)}</td>
+                        <td className="table-cell text-center">{formatLimitValue(limit.requests_per_day)}</td>
+                        <td className="table-cell text-center">{formatLimitValue(limit.tokens_per_minute)}</td>
+                        <td className="table-cell text-center">{formatLimitValue(limit.tokens_per_day)}</td>
                         <td className="table-cell text-center">
                           {tier?.price === 0 ? 'Бесплатно' : 
                            typeof tier?.price === 'number' ? `$${tier.price}` : tier?.price || 'Не указано'}

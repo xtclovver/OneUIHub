@@ -15,13 +15,12 @@ import {
   createModel,
   updateModel,
   deleteModel,
-  formatCurrency,
-  formatNumber,
   syncModelsFromLiteLLM,
   syncModelsFromModelGroup,
   syncCompaniesFromLiteLLM,
   adminAPI,
 } from '../../api/admin';
+import { formatCurrency, formatNumber, formatLimitEditValue, parseLimitValue } from '../../utils/formatUtils';
 import { ModelGroupInfo, CreateModelRequest, UpdateModelRequest } from '../../types/admin';
 import { RateLimit, Tier } from '../../types';
 
@@ -683,12 +682,19 @@ const EditModelModal: React.FC<{
     setEditingRateLimits(initialRateLimits);
   }, [modelRateLimits, tiers, model.id]);
 
-  const handleRateLimitChange = (tierID: string, field: keyof RateLimit, value: number) => {
+  // Функция для форматирования значения лимита для отображения
+  const formatLimitValue = formatLimitEditValue;
+
+  // Функция для обработки ввода значения лимита
+  const parseLimitValueLocal = parseLimitValue;
+
+  const handleRateLimitChange = (tierID: string, field: keyof RateLimit, value: string) => {
+    const numericValue = parseLimitValueLocal(value);
     setEditingRateLimits(prev => ({
       ...prev,
       [tierID]: {
         ...prev[tierID],
-        [field]: isNaN(value) ? 0 : value
+        [field]: numericValue
       }
     }));
   };
@@ -1154,42 +1160,42 @@ const EditModelModal: React.FC<{
                         </td>
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
-                            type="number"
-                            min="0"
-                            value={rateLimit.requests_per_minute === 0 ? '' : rateLimit.requests_per_minute}
-                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_minute', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0"
+                            type="text"
+                            value={formatLimitValue(rateLimit.requests_per_minute)}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_minute', e.target.value)}
+                            className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="0 или ∞"
+                            title="Введите число, 0 для отсутствия лимита, или -1/∞ для бесконечности"
                           />
                         </td>
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
-                            type="number"
-                            min="0"
-                            value={rateLimit.requests_per_day === 0 ? '' : rateLimit.requests_per_day}
-                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_day', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0"
+                            type="text"
+                            value={formatLimitValue(rateLimit.requests_per_day)}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'requests_per_day', e.target.value)}
+                            className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="0 или ∞"
+                            title="Введите число, 0 для отсутствия лимита, или -1/∞ для бесконечности"
                           />
                         </td>
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
-                            type="number"
-                            min="0"
-                            value={rateLimit.tokens_per_minute === 0 ? '' : rateLimit.tokens_per_minute}
-                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_minute', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0"
+                            type="text"
+                            value={formatLimitValue(rateLimit.tokens_per_minute)}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_minute', e.target.value)}
+                            className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="0 или ∞"
+                            title="Введите число, 0 для отсутствия лимита, или -1/∞ для бесконечности"
                           />
                         </td>
                         <td className="py-2 px-3 text-sm text-gray-900 text-center">
                           <input
-                            type="number"
-                            min="0"
-                            value={rateLimit.tokens_per_day === 0 ? '' : rateLimit.tokens_per_day}
-                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_day', parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0"
+                            type="text"
+                            value={formatLimitValue(rateLimit.tokens_per_day)}
+                            onChange={(e) => handleRateLimitChange(tier.id, 'tokens_per_day', e.target.value)}
+                            className="w-24 px-2 py-1 text-center border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="0 или ∞"
+                            title="Введите число, 0 для отсутствия лимита, или -1/∞ для бесконечности"
                           />
                         </td>
                         <td className="py-2 px-3 text-sm text-center">
@@ -1227,6 +1233,7 @@ const EditModelModal: React.FC<{
             </div>
             <div className="mt-4 text-sm text-gray-500">
               <p>• Значение 0 означает отсутствие лимита</p>
+              <p>• Значение -1 или ∞ означает бесконечный лимит</p>
               <p>• Изменения сохраняются индивидуально для каждого тарифа</p>
             </div>
           </div>
