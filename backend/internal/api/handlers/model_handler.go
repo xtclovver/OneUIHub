@@ -30,9 +30,23 @@ type CreateModelRequest struct {
 
 type UpdateModelRequest struct {
 	CompanyID   string `json:"company_id"`
-	Name        string `json:"name"`
+	ModelName   string `json:"model_name"`
 	Description string `json:"description"`
 	Features    string `json:"features"`
+
+	// Новые поля возможностей модели
+	SupportsVision                  *bool `json:"supports_vision"`
+	SupportsFunctionCalling         *bool `json:"supports_function_calling"`
+	SupportsWebSearch               *bool `json:"supports_web_search"`
+	SupportsReasoning               *bool `json:"supports_reasoning"`
+	SupportsParallelFunctionCalling *bool `json:"supports_parallel_function_calling"`
+
+	// Технические параметры
+	MaxInputTokens  *int   `json:"max_input_tokens"`
+	MaxOutputTokens *int   `json:"max_output_tokens"`
+	Mode            string `json:"mode"`
+	Providers       string `json:"providers"`
+
 	ModelConfig *struct {
 		IsEnabled       *bool    `json:"is_enabled"`
 		IsFree          *bool    `json:"is_free"`
@@ -184,18 +198,49 @@ func (h *ModelHandler) UpdateModel(c *gin.Context) {
 		return
 	}
 
-	// Обновляем поля модели
+	// Обновляем основные поля модели
 	if req.CompanyID != "" {
 		model.CompanyID = req.CompanyID
 	}
-	if req.Name != "" {
-		model.Name = req.Name
+	if req.ModelName != "" {
+		model.Name = req.ModelName
 	}
 	if req.Description != "" {
 		model.Description = req.Description
 	}
 	if req.Features != "" {
 		model.Features = req.Features
+	}
+
+	// Обновляем поля возможностей модели
+	if req.SupportsVision != nil {
+		model.SupportsVision = *req.SupportsVision
+	}
+	if req.SupportsFunctionCalling != nil {
+		model.SupportsFunctionCalling = *req.SupportsFunctionCalling
+	}
+	if req.SupportsWebSearch != nil {
+		model.SupportsWebSearch = *req.SupportsWebSearch
+	}
+	if req.SupportsReasoning != nil {
+		model.SupportsReasoning = *req.SupportsReasoning
+	}
+	if req.SupportsParallelFunctionCalling != nil {
+		model.SupportsParallelFunctionCalling = *req.SupportsParallelFunctionCalling
+	}
+
+	// Обновляем технические параметры
+	if req.MaxInputTokens != nil {
+		model.MaxInputTokens = req.MaxInputTokens
+	}
+	if req.MaxOutputTokens != nil {
+		model.MaxOutputTokens = req.MaxOutputTokens
+	}
+	if req.Mode != "" {
+		model.Mode = req.Mode
+	}
+	if req.Providers != "" {
+		model.Providers = req.Providers
 	}
 
 	// Обновляем модель в БД

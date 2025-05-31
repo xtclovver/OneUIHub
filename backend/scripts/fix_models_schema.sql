@@ -1,9 +1,5 @@
--- Исправление схемы таблицы models
--- Добавляем недостающие колонки
-
 USE oneui_hub;
 
--- Проверяем и добавляем недостающие колонки в таблицу models
 ALTER TABLE models 
 ADD COLUMN IF NOT EXISTS providers TEXT,
 ADD COLUMN IF NOT EXISTS max_input_tokens INT,
@@ -17,7 +13,6 @@ ADD COLUMN IF NOT EXISTS supports_function_calling BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS supported_openai_params TEXT;
 
 -- Если колонка с неправильным именем существует, переименовываем её
--- (MySQL не поддерживает IF EXISTS для CHANGE COLUMN, поэтому используем процедуру)
 DELIMITER $$
 CREATE PROCEDURE FixColumnName()
 BEGIN

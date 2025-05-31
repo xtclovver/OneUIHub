@@ -643,6 +643,9 @@ const EditModelModal: React.FC<{
   const [isEnabled, setIsEnabled] = useState(model.model_config?.is_enabled || false);
   const [isFree, setIsFree] = useState(model.model_config?.is_free || false);
 
+  // Состояние для возможностей модели
+  const [supportsParallelFunctionCalling, setSupportsParallelFunctionCalling] = useState(model.supports_parallel_function_calling || false);
+
   // Получаем rate limits для этой модели
   const modelRateLimits = rateLimits.filter(limit => limit.model_id === model.id);
 
@@ -824,6 +827,20 @@ const EditModelModal: React.FC<{
       // Добавляем описание и особенности в отдельные поля
       description,
       features,
+      
+      // Возможности модели
+      supports_vision: formData.model_info?.supports_vision || false,
+      supports_function_calling: formData.model_info?.supports_function_calling || false,
+      supports_web_search: formData.model_info?.supports_web_search || false,
+      supports_reasoning: formData.model_info?.supports_reasoning || false,
+      supports_parallel_function_calling: supportsParallelFunctionCalling,
+      
+      // Технические параметры  
+      max_input_tokens: formData.model_info?.max_input_tokens || model.max_input_tokens || undefined,
+      max_output_tokens: formData.model_info?.max_output_tokens || model.max_output_tokens || undefined,
+      mode: formData.model_info?.mode || model.mode,
+      providers: formData.model_info?.litellm_provider || model.providers,
+      
       model_config: {
         is_enabled: isEnabled,
         is_free: isFree,
@@ -984,6 +1001,16 @@ const EditModelModal: React.FC<{
                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                   />
                   <span className="ml-2 text-sm text-gray-700">Веб-поиск</span>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={supportsParallelFunctionCalling}
+                    onChange={(e) => setSupportsParallelFunctionCalling(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Параллельные функции</span>
                 </label>
               </div>
             </div>
