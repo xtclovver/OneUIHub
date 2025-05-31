@@ -487,6 +487,7 @@ func (c *Client) newRequest(ctx context.Context, method, endpoint string, body i
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		req.Header.Set("x-litellm-api-key", c.apiKey)
 	}
 
 	return req, nil
@@ -528,6 +529,25 @@ func (c *Client) GetSpendLogs(ctx context.Context, userID string, limit, offset 
 	return &response, nil
 }
 
+// GetSpendLogsByAPIKey получает логи трат по API ключу (как в curl примере)
+func (c *Client) GetSpendLogsByAPIKey(ctx context.Context, apiKey string) ([]map[string]interface{}, error) {
+	endpoint := fmt.Sprintf("/spend/logs?api_key=%s", apiKey)
+	req, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Добавляем заголовок x-litellm-api-key как в curl примере
+	req.Header.Set("x-litellm-api-key", c.apiKey)
+
+	var response []map[string]interface{}
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get spend logs: %w", err)
+	}
+
+	return response, nil
+}
+
 func (c *Client) GetKeyInfo(ctx context.Context, keyID string) (map[string]interface{}, error) {
 	reqBody := map[string]string{"key": keyID}
 	req, err := c.newRequest(ctx, "POST", "/key/info", reqBody)
@@ -555,4 +575,75 @@ func (c *Client) ListKeys(ctx context.Context) ([]map[string]interface{}, error)
 	}
 
 	return response, nil
+}
+
+// GetKeyUsageStats получает статистику использования для конкретного API ключа
+func (c *Client) GetKeyUsageStats(ctx context.Context, apiKey string) (map[string]interface{}, error) {
+	endpoint := fmt.Sprintf("/spend/logs?api_key=%s", apiKey)
+	req, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var logs []map[string]interface{}
+	if err := c.doRequest(req, &logs); err != nil {
+		return nil, fmt.Errorf("failed to get key usage stats: %w", err)
+	}
+
+	// Подсчитываем статистику
+	stats := map[string]interface{}{
+		"usage_count":    len(logs),
+		"total_cost":     0.0,
+		"total_tokens":   0,
+		"last_used":      "",
+		"models_used":    make(map[string]int),
+		"providers_used": make(map[string]int),
+	}
+
+	if len(logs) == 0 {
+		return stats, nil
+	}
+
+	totalCost := 0.0
+	totalTokens := 0
+	modelsUsed := make(map[string]int)
+	providersUsed := make(map[string]int)
+	var lastUsed string
+
+	for _, log := range logs {
+		// Стоимость
+		if spend, ok := log["spend"].(float64); ok {
+			totalCost += spend
+		}
+
+		// Токены
+		if tokens, ok := log["total_tokens"].(float64); ok {
+			totalTokens += int(tokens)
+		}
+
+		// Модели
+		if model, ok := log["model"].(string); ok && model != "" {
+			modelsUsed[model]++
+		}
+
+		// Провайдеры
+		if provider, ok := log["custom_llm_provider"].(string); ok && provider != "" {
+			providersUsed[provider]++
+		}
+
+		// Последнее использование
+		if startTime, ok := log["startTime"].(string); ok {
+			if lastUsed == "" || startTime > lastUsed {
+				lastUsed = startTime
+			}
+		}
+	}
+
+	stats["total_cost"] = totalCost
+	stats["total_tokens"] = totalTokens
+	stats["last_used"] = lastUsed
+	stats["models_used"] = modelsUsed
+	stats["providers_used"] = providersUsed
+
+	return stats, nil
 }

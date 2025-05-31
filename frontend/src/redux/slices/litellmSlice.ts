@@ -1,12 +1,18 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { liteLLMAPI, LiteLLMUsage, LiteLLMApiKey, LiteLLMBudget } from '../../api/litellm';
+import { liteLLMAPI, LiteLLMUsage, LiteLLMApiKey, LiteLLMBudget, LiteLLMRequest, LiteLLMRequestHistoryResponse } from '../../api/litellm';
 
 interface LiteLLMState {
   usage: LiteLLMUsage | null;
   apiKeys: LiteLLMApiKey[];
   budget: LiteLLMBudget | null;
   usageStats: any;
-  requestHistory: any[];
+  requestHistory: LiteLLMRequest[];
+  requestHistoryMeta: {
+    total_count: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  } | null;
   isLoading: boolean;
   error: string | null;
   newApiKey: LiteLLMApiKey | null;
@@ -18,6 +24,7 @@ const initialState: LiteLLMState = {
   budget: null,
   usageStats: null,
   requestHistory: [],
+  requestHistoryMeta: null,
   isLoading: false,
   error: null,
   newApiKey: null,
@@ -104,9 +111,10 @@ export const fetchUsageStats = createAsyncThunk(
 
 export const fetchRequestHistory = createAsyncThunk(
   'litellm/fetchRequestHistory',
-  async ({ userId, limit, offset }: { userId: string; limit?: number; offset?: number }, { rejectWithValue }) => {
+  async ({ userId, limit, offset, append }: { userId: string; limit?: number; offset?: number; append?: boolean }, { rejectWithValue }) => {
     try {
-      return await liteLLMAPI.getRequestHistory(userId, limit, offset);
+      const response = await liteLLMAPI.getRequestHistory(userId, limit, offset);
+      return { ...response, append: append || false };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Ошибка загрузки истории запросов');
     }
@@ -129,7 +137,12 @@ const litellmSlice = createSlice({
       state.budget = null;
       state.usageStats = null;
       state.requestHistory = [];
+      state.requestHistoryMeta = null;
       state.newApiKey = null;
+    },
+    clearRequestHistory: (state) => {
+      state.requestHistory = [];
+      state.requestHistoryMeta = null;
     },
   },
   extraReducers: (builder) => {
@@ -198,11 +211,35 @@ const litellmSlice = createSlice({
       })
 
       // Fetch Request History
+      .addCase(fetchRequestHistory.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
       .addCase(fetchRequestHistory.fulfilled, (state, action) => {
-        state.requestHistory = action.payload as any[];
+        state.isLoading = false;
+        const { requests, total_count, limit, offset, has_more, append } = action.payload;
+        
+        if (append) {
+          // Добавляем к существующим данным (для пагинации)
+          state.requestHistory = [...state.requestHistory, ...requests];
+        } else {
+          // Заменяем данные (новая загрузка)
+          state.requestHistory = requests;
+        }
+        
+        state.requestHistoryMeta = {
+          total_count,
+          limit,
+          offset,
+          has_more
+        };
+      })
+      .addCase(fetchRequestHistory.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearError, clearNewApiKey, clearData } = litellmSlice.actions;
+export const { clearError, clearNewApiKey, clearData, clearRequestHistory } = litellmSlice.actions;
 export default litellmSlice.reducer; 

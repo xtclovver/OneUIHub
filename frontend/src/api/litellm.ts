@@ -23,6 +23,9 @@ export interface LiteLLMApiKey {
   last_used?: string;
   is_active: boolean;
   usage_count: number;
+  total_cost?: number;
+  models_used?: { [model: string]: number };
+  providers_used?: { [provider: string]: number };
 }
 
 export interface LiteLLMBudget {
@@ -33,6 +36,51 @@ export interface LiteLLMBudget {
   currency: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface LiteLLMRequest {
+  id: string;
+  request_id: string;
+  call_type: string;
+  api_key: string;
+  api_key_name?: string;
+  api_key_id?: string;
+  model: string;
+  model_group?: string;
+  custom_llm_provider?: string;
+  user?: string;
+  cost: number;
+  spend: number;
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  start_time: string;
+  end_time: string;
+  completion_start_time?: string;
+  created_at: string;
+  session_id?: string;
+  status?: string;
+  cache_hit?: string;
+  cache_key?: string;
+  request_tags?: string[];
+  team_id?: string;
+  end_user?: string;
+  requester_ip_address?: string;
+  api_base?: string;
+  metadata?: any;
+  messages?: any;
+  response?: any;
+  proxy_server_request?: any;
+}
+
+export interface LiteLLMRequestHistoryResponse {
+  requests: LiteLLMRequest[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export const liteLLMAPI = {
@@ -78,8 +126,8 @@ export const liteLLMAPI = {
   },
 
   // Получить историю запросов
-  getRequestHistory: async (userId: string, limit = 50, offset = 0) => {
+  getRequestHistory: async (userId: string, limit = 50, offset = 0): Promise<LiteLLMRequestHistoryResponse> => {
     const response = await apiClient.get(`/users/${userId}/requests?limit=${limit}&offset=${offset}`);
-    return response.data;
+    return response.data as LiteLLMRequestHistoryResponse;
   }
 }; 
