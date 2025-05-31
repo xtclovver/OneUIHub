@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   BuildingOfficeIcon,
   PlusIcon,
@@ -8,7 +9,6 @@ import {
   EyeIcon,
   CheckCircleIcon,
   XCircleIcon,
-  GlobeAltIcon,
   CpuChipIcon,
   LinkIcon,
 } from '@heroicons/react/24/outline';
@@ -26,12 +26,25 @@ import {
 } from '../../api/admin';
 import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
+import { RootState } from '../../redux/store';
 
 interface CompaniesManagementProps {
   onClose?: () => void;
 }
 
+// Функция для преобразования относительных URL в полные
+const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
+  if (!logoUrl) return undefined;
+  
+  if (logoUrl.startsWith('/uploads/')) {
+    return `http://localhost:8080${logoUrl}`;
+  }
+  
+  return logoUrl;
+};
+
 const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) => {
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +59,19 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
   const [showLinkModelModal, setShowLinkModelModal] = useState(false);
   const [companyForModel, setCompanyForModel] = useState<Company | null>(null);
   const [availableModels, setAvailableModels] = useState<any[]>([]);
+
+  // Проверяем авторизацию и права администратора
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setError('Необходима авторизация для доступа к админ панели');
+      return;
+    }
+    
+    if (user?.role !== 'admin') {
+      setError('Недостаточно прав для доступа к админ панели');
+      return;
+    }
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     loadCompanies();
@@ -181,6 +207,17 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
 
   return (
     <div className="space-y-6">
+      {/* Информация о статусе авторизации для отладки */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <div className="text-sm text-blue-800">
+            <strong>Статус авторизации:</strong> {isAuthenticated ? 'Авторизован' : 'Не авторизован'}<br/>
+            <strong>Роль пользователя:</strong> {user?.role || 'Не определена'}<br/>
+            <strong>Токен:</strong> {localStorage.getItem('token') ? 'Присутствует' : 'Отсутствует'}
+          </div>
+        </div>
+      )}
+      
       {/* Заголовок и действия */}
       <div className="flex justify-between items-center">
         <div>
@@ -250,13 +287,22 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
                 <div className="flex items-center space-x-3">
                   {company.logo_url ? (
                     <img 
-                      src={company.logo_url} 
+                      src={getFullLogoUrl(company.logo_url)} 
                       alt={company.name}
                       className="w-10 h-10 rounded-lg object-cover"
+                      onError={(e) => {
+                        // При ошибке загрузки показываем иконку по умолчанию
+                        e.currentTarget.style.display = 'none';
+                        const iconElement = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (iconElement) {
+                          iconElement.style.display = 'block';
+                        }
+                      }}
                     />
-                  ) : (
-                    <BuildingOfficeIcon className="h-10 w-10 text-gray-400" />
-                  )}
+                  ) : null}
+                  <BuildingOfficeIcon 
+                    className={`h-10 w-10 text-gray-400 ${company.logo_url ? 'hidden' : 'block'}`} 
+                  />
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{company.name}</h3>
                     <p className="text-sm text-gray-500">
@@ -326,6 +372,8 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
         <CreateCompanyModal
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateCompany}
+          isAuthenticated={isAuthenticated}
+          user={user}
         />
       )}
 
@@ -338,6 +386,8 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
             setSelectedCompany(null);
           }}
           onSubmit={handleUpdateCompany}
+          isAuthenticated={isAuthenticated}
+          user={user}
         />
       )}
 
@@ -424,7 +474,9 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
 const CreateCompanyModal: React.FC<{
   onClose: () => void;
   onSubmit: (data: CreateCompanyRequest) => void;
-}> = ({ onClose, onSubmit }) => {
+  isAuthenticated: boolean;
+  user: any;
+}> = ({ onClose, onSubmit, isAuthenticated, user }) => {
   const [formData, setFormData] = useState({
     name: '',
     logo_url: '',
@@ -452,15 +504,16 @@ const CreateCompanyModal: React.FC<{
 
       setLogoFile(file);
       
-      // Создаем превью для PNG файлов
-      if (file.type.includes('png')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setLogoPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
+      // Создаем превью для всех типов файлов
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string);
+      };
+      
+      if (file.type.includes('svg')) {
+        reader.readAsText(file); // Читаем SVG как текст
       } else {
-        setLogoPreview(''); // Для SVG не показываем превью
+        reader.readAsDataURL(file); // Читаем PNG как data URL
       }
     }
   };
@@ -468,22 +521,43 @@ const CreateCompanyModal: React.FC<{
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Проверяем авторизацию перед загрузкой
+    if (!isAuthenticated || user?.role !== 'admin') {
+      alert('Недостаточно прав для загрузки файлов. Войдите как администратор.');
+      return;
+    }
+    
     let finalFormData = { ...formData };
+    console.log('Исходные данные формы:', finalFormData);
     
     // Если выбран файл, загружаем его
     if (logoFile) {
+      console.log('Загружаем файл логотипа:', logoFile.name);
       setUploading(true);
       try {
         const logoUrl = await uploadLogo(logoFile);
+        console.log('Логотип успешно загружен, URL:', logoUrl);
         finalFormData.logo_url = logoUrl;
+        console.log('Обновленные данные формы:', finalFormData);
       } catch (error) {
-        alert('Ошибка при загрузке логотипа: ' + (error as Error).message);
+        console.error('Ошибка при загрузке логотипа:', error);
+        const errorMessage = (error as Error).message;
+        
+        if (errorMessage.includes('Authorization') || errorMessage.includes('401')) {
+          alert('Ошибка авторизации. Пожалуйста, войдите в систему как администратор.');
+        } else if (errorMessage.includes('Сервер не отвечает')) {
+          alert('Сервер недоступен. Убедитесь что backend запущен на порту 8080.');
+        } else {
+          alert('Ошибка при загрузке логотипа: ' + errorMessage);
+        }
+        
         setUploading(false);
         return;
       }
       setUploading(false);
     }
     
+    console.log('Отправляем данные на сервер:', finalFormData);
     onSubmit(finalFormData);
   };
 
@@ -529,7 +603,14 @@ const CreateCompanyModal: React.FC<{
                 />
                 {logoPreview && (
                   <div className="mt-2">
-                    <img src={logoPreview} alt="Превью логотипа" className="w-16 h-16 object-contain border rounded" />
+                    {logoFile?.type.includes('svg') ? (
+                      <div 
+                        className="w-16 h-16 border rounded flex items-center justify-center bg-gray-50"
+                        dangerouslySetInnerHTML={{ __html: logoPreview }}
+                      />
+                    ) : (
+                      <img src={logoPreview} alt="Превью логотипа" className="w-16 h-16 object-contain border rounded" />
+                    )}
                   </div>
                 )}
                 {logoFile && logoFile.type.includes('svg') && (
@@ -545,11 +626,11 @@ const CreateCompanyModal: React.FC<{
                   Или введите URL логотипа
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={formData.logo_url}
                   onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://example.com/logo.png"
+                  placeholder="https://example.com/logo.png или /uploads/logos/file.svg"
                   disabled={!!logoFile}
                 />
               </div>
@@ -620,7 +701,9 @@ const EditCompanyModal: React.FC<{
   company: Company;
   onClose: () => void;
   onSubmit: (data: UpdateCompanyRequest) => void;
-}> = ({ company, onClose, onSubmit }) => {
+  isAuthenticated: boolean;
+  user: any;
+}> = ({ company, onClose, onSubmit, isAuthenticated, user }) => {
   const [formData, setFormData] = useState({
     name: company.name,
     logo_url: company.logo_url || '',
@@ -648,15 +731,16 @@ const EditCompanyModal: React.FC<{
 
       setLogoFile(file);
       
-      // Создаем превью для PNG файлов
-      if (file.type.includes('png')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setLogoPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
+      // Создаем превью для всех типов файлов
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string);
+      };
+      
+      if (file.type.includes('svg')) {
+        reader.readAsText(file); // Читаем SVG как текст
       } else {
-        setLogoPreview(''); // Для SVG не показываем превью
+        reader.readAsDataURL(file); // Читаем PNG как data URL
       }
     }
   };
@@ -675,31 +759,53 @@ const EditCompanyModal: React.FC<{
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Проверяем авторизацию перед загрузкой
+    if (!isAuthenticated || user?.role !== 'admin') {
+      alert('Недостаточно прав для загрузки файлов. Войдите как администратор.');
+      return;
+    }
+    
     let finalFormData = { ...formData };
+    console.log('Исходные данные формы (редактирование):', finalFormData);
     
     // Если выбран новый файл, загружаем его
     if (logoFile) {
+      console.log('Загружаем новый файл логотипа:', logoFile.name);
       setUploading(true);
       try {
         // Удаляем старый логотип если он был загружен через наш сервис
         if (formData.logo_url && formData.logo_url.startsWith('/uploads/')) {
           try {
             await deleteLogo(formData.logo_url);
+            console.log('Старый логотип удален:', formData.logo_url);
           } catch (error) {
             console.error('Ошибка при удалении старого логотипа:', error);
           }
         }
         
         const logoUrl = await uploadLogo(logoFile);
+        console.log('Новый логотип успешно загружен, URL:', logoUrl);
         finalFormData.logo_url = logoUrl;
+        console.log('Обновленные данные формы (редактирование):', finalFormData);
       } catch (error) {
-        alert('Ошибка при загрузке логотипа: ' + (error as Error).message);
+        console.error('Ошибка при загрузке логотипа:', error);
+        const errorMessage = (error as Error).message;
+        
+        if (errorMessage.includes('Authorization') || errorMessage.includes('401')) {
+          alert('Ошибка авторизации. Пожалуйста, войдите в систему как администратор.');
+        } else if (errorMessage.includes('Сервер не отвечает')) {
+          alert('Сервер недоступен. Убедитесь что backend запущен на порту 8080.');
+        } else {
+          alert('Ошибка при загрузке логотипа: ' + errorMessage);
+        }
+        
         setUploading(false);
         return;
       }
       setUploading(false);
     }
     
+    console.log('Отправляем данные на сервер (редактирование):', finalFormData);
     onSubmit(finalFormData);
   };
 
@@ -735,9 +841,20 @@ const EditCompanyModal: React.FC<{
               {formData.logo_url && !logoFile && (
                 <div className="flex items-center space-x-3">
                   <img 
-                    src={formData.logo_url} 
+                    src={getFullLogoUrl(formData.logo_url)} 
                     alt="Текущий логотип" 
                     className="w-16 h-16 object-contain border rounded"
+                    onError={(e) => {
+                      // При ошибке загрузки скрываем изображение и показываем сообщение
+                      e.currentTarget.style.display = 'none';
+                      const container = e.currentTarget.parentElement;
+                      if (container) {
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'text-sm text-red-600';
+                        errorMsg.textContent = 'Ошибка загрузки логотипа';
+                        container.appendChild(errorMsg);
+                      }
+                    }}
                   />
                   <button
                     type="button"
@@ -762,7 +879,14 @@ const EditCompanyModal: React.FC<{
                 />
                 {logoPreview && (
                   <div className="mt-2">
-                    <img src={logoPreview} alt="Превью нового логотипа" className="w-16 h-16 object-contain border rounded" />
+                    {logoFile?.type.includes('svg') ? (
+                      <div 
+                        className="w-16 h-16 border rounded flex items-center justify-center bg-gray-50"
+                        dangerouslySetInnerHTML={{ __html: logoPreview }}
+                      />
+                    ) : (
+                      <img src={logoPreview} alt="Превью логотипа" className="w-16 h-16 object-contain border rounded" />
+                    )}
                   </div>
                 )}
                 {logoFile && logoFile.type.includes('svg') && (
@@ -778,10 +902,11 @@ const EditCompanyModal: React.FC<{
                   Или введите URL логотипа
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={formData.logo_url}
                   onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://example.com/logo.png или /uploads/logos/file.svg"
                   disabled={!!logoFile}
                 />
               </div>
@@ -865,13 +990,22 @@ const CompanyDetailsModal: React.FC<{
           <div className="flex items-center space-x-4">
             {company.logo_url ? (
               <img 
-                src={company.logo_url} 
+                src={getFullLogoUrl(company.logo_url)} 
                 alt={company.name}
                 className="w-16 h-16 rounded-lg object-cover"
+                onError={(e) => {
+                  // При ошибке загрузки показываем иконку по умолчанию
+                  e.currentTarget.style.display = 'none';
+                  const iconElement = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (iconElement) {
+                    iconElement.style.display = 'block';
+                  }
+                }}
               />
-            ) : (
-              <BuildingOfficeIcon className="h-16 w-16 text-gray-400" />
-            )}
+            ) : null}
+            <BuildingOfficeIcon 
+              className={`h-16 w-16 text-gray-400 ${company.logo_url ? 'hidden' : 'block'}`} 
+            />
             <div>
               <h4 className="text-xl font-semibold text-gray-900">{company.name}</h4>
               <p className="text-sm text-gray-500">ID: {company.id}</p>

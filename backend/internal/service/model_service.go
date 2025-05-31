@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"oneui-hub/internal/domain"
 	"oneui-hub/internal/litellm"
@@ -141,11 +142,14 @@ func (s *modelService) ensureCompanyExists(ctx context.Context, providerName str
 	}
 
 	// Если компании нет, создаем новую (администратор добавит логотип и описание позже)
+	now := time.Now()
 	newCompany := &domain.Company{
 		ID:          uuid.New().String(),
 		Name:        providerName,
 		ExternalID:  providerName,
 		Description: fmt.Sprintf("AI провайдер %s", providerName),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.companyRepo.Create(ctx, newCompany); err != nil {
@@ -164,6 +168,8 @@ func (s *modelService) convertModelGroupToModel(modelGroup litellm.LiteLLMModelG
 	maxInputTokens := int(modelGroup.MaxInputTokens)
 	maxOutputTokens := int(modelGroup.MaxOutputTokens)
 
+	now := time.Now()
+
 	return &domain.Model{
 		CompanyID:                       companyID,
 		Name:                            modelGroup.ModelGroup,
@@ -179,6 +185,8 @@ func (s *modelService) convertModelGroupToModel(modelGroup litellm.LiteLLMModelG
 		SupportsReasoning:               modelGroup.SupportsReasoning,
 		SupportsFunctionCalling:         modelGroup.SupportsFunctionCalling,
 		SupportedOpenAIParams:           string(openaiParamsJSON),
+		CreatedAt:                       now,
+		UpdatedAt:                       now,
 	}
 }
 
@@ -195,6 +203,7 @@ func (s *modelService) updateModelConfig(ctx context.Context, modelID string, in
 
 	if config == nil {
 		// Создаем новую конфигурацию
+		now := time.Now()
 		config = &domain.ModelConfig{
 			ID:              uuid.New().String(),
 			ModelID:         modelID,
@@ -202,6 +211,8 @@ func (s *modelService) updateModelConfig(ctx context.Context, modelID string, in
 			IsEnabled:       true,
 			InputTokenCost:  inputCost,
 			OutputTokenCost: outputCost,
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
 		return s.modelConfigRepo.Create(ctx, config)
 	}
@@ -225,6 +236,7 @@ func (s *modelService) updateModelConfigFull(ctx context.Context, modelID string
 
 	if config == nil {
 		// Создаем новую конфигурацию
+		now := time.Now()
 		config = &domain.ModelConfig{
 			ID:              uuid.New().String(),
 			ModelID:         modelID,
@@ -232,6 +244,8 @@ func (s *modelService) updateModelConfigFull(ctx context.Context, modelID string
 			IsEnabled:       true,
 			InputTokenCost:  inputCost,
 			OutputTokenCost: outputCost,
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
 
 		if isEnabled != nil {
@@ -274,6 +288,9 @@ func (s *modelService) GetModelByID(ctx context.Context, id string) (*domain.Mod
 
 func (s *modelService) CreateModel(ctx context.Context, model *domain.Model) error {
 	model.ID = uuid.New().String()
+	now := time.Now()
+	model.CreatedAt = now
+	model.UpdatedAt = now
 	return s.modelRepo.Create(ctx, model)
 }
 
@@ -367,6 +384,7 @@ func (s *modelService) SyncModelsFromModelGroup(ctx context.Context) error {
 			}
 
 			// Создаем конфигурацию модели
+			now := time.Now()
 			modelConfig := &domain.ModelConfig{
 				ID:              uuid.New().String(),
 				ModelID:         model.ID,
@@ -374,6 +392,8 @@ func (s *modelService) SyncModelsFromModelGroup(ctx context.Context) error {
 				IsEnabled:       true,
 				InputTokenCost:  &modelGroup.InputCostPerToken,
 				OutputTokenCost: &modelGroup.OutputCostPerToken,
+				CreatedAt:       now,
+				UpdatedAt:       now,
 			}
 
 			if err := s.createModelConfig(ctx, modelConfig); err != nil {
@@ -413,12 +433,15 @@ func (s *modelService) GetModelsByCompanyID(ctx context.Context, companyID strin
 // Административные методы для компаний
 
 func (s *modelService) CreateCompany(ctx context.Context, name, logoURL, description, externalID string) (*domain.Company, error) {
+	now := time.Now()
 	company := &domain.Company{
 		ID:          uuid.New().String(),
 		Name:        name,
 		LogoURL:     logoURL,
 		Description: description,
 		ExternalID:  externalID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.companyRepo.Create(ctx, company); err != nil {
@@ -496,11 +519,14 @@ func (s *modelService) SyncCompaniesFromLiteLLM(ctx context.Context) error {
 
 		if existingCompany == nil {
 			// Создаем новую компанию
+			now := time.Now()
 			company := &domain.Company{
 				ID:          uuid.New().String(),
 				Name:        provider,
 				ExternalID:  provider,
 				Description: fmt.Sprintf("AI провайдер %s", provider),
+				CreatedAt:   now,
+				UpdatedAt:   now,
 			}
 
 			if err := s.companyRepo.Create(ctx, company); err != nil {

@@ -11,14 +11,12 @@ import (
 )
 
 func main() {
-	// Создаем конфигурацию для LiteLLM
 	cfg := &config.LiteLLMConfig{
 		BaseURL: "http://localhost:4000",
 		APIKey:  "sk-SZQ85Nd1gd0gkzIbjbAajg",
 		Timeout: 30 * time.Second,
 	}
 
-	// Создаем клиент
 	client := litellm.NewClient(cfg)
 	ctx := context.Background()
 

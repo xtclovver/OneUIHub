@@ -313,8 +313,11 @@ export const createCompany = async (data: {
   external_id?: string;
 }): Promise<void> => {
   try {
-    await apiClient.post('/admin/companies', data);
+    console.log('Создаем компанию с данными:', data);
+    const response = await apiClient.post('/admin/companies', data);
+    console.log('Компания создана, ответ сервера:', response.data);
   } catch (error: any) {
+    console.error('Ошибка при создании компании:', error);
     throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при создании компании');
   }
 };
@@ -326,8 +329,11 @@ export const updateCompany = async (id: string, data: {
   external_id?: string;
 }): Promise<void> => {
   try {
-    await apiClient.put(`/admin/companies/${id}`, data);
+    console.log('Обновляем компанию', id, 'с данными:', data);
+    const response = await apiClient.put(`/admin/companies/${id}`, data);
+    console.log('Компания обновлена, ответ сервера:', response.data);
   } catch (error: any) {
+    console.error('Ошибка при обновлении компании:', error);
     throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при обновлении компании');
   }
 };
@@ -392,18 +398,61 @@ export const linkModelToCompany = async (modelId: string, companyId: string): Pr
 // Функции для загрузки логотипов
 export const uploadLogo = async (file: File): Promise<string> => {
   try {
+    console.log('Начинаем загрузку логотипа:', file.name, file.type, file.size);
+    
     const formData = new FormData();
     formData.append('logo', file);
 
+    console.log('Отправляем запрос на /admin/upload/logo');
+    
     const response = await apiClient.post('/admin/upload/logo', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
-    return (response.data as any).data.url;
+    console.log('Ответ сервера:', response.data);
+    console.log('Структура ответа:', JSON.stringify(response.data, null, 2));
+    
+    // Проверяем разные возможные структуры ответа
+    let logoUrl = null;
+    const responseData = response.data as any;
+    
+    if (responseData && responseData.data && responseData.data.url) {
+      logoUrl = responseData.data.url;
+    } else if (responseData && responseData.url) {
+      logoUrl = responseData.url;
+    } else if (typeof responseData === 'string') {
+      logoUrl = responseData;
+    }
+    
+    if (logoUrl) {
+      console.log('Извлеченный URL логотипа:', logoUrl);
+      
+      // Если URL относительный, делаем его абсолютным для backend
+      if (logoUrl.startsWith('/uploads/')) {
+        logoUrl = `http://localhost:8080${logoUrl}`;
+        console.log('Преобразованный URL логотипа:', logoUrl);
+      }
+      
+      return logoUrl;
+    } else {
+      console.error('Неверная структура ответа. Ожидался URL логотипа, получено:', response.data);
+      throw new Error('Неверный формат ответа сервера - URL логотипа не найден');
+    }
   } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.response?.data?.message || 'Ошибка при загрузке логотипа');
+    console.error('Ошибка при загрузке логотипа:', error);
+    
+    if (error.response) {
+      console.error('Ответ сервера:', error.response.status, error.response.data);
+      throw new Error(error.response?.data?.error || error.response?.data?.message || `Ошибка сервера: ${error.response.status}`);
+    } else if (error.request) {
+      console.error('Запрос не получил ответ:', error.request);
+      throw new Error('Сервер не отвечает. Проверьте подключение к backend.');
+    } else {
+      console.error('Ошибка настройки запроса:', error.message);
+      throw new Error('Ошибка при настройке запроса: ' + error.message);
+    }
   }
 };
 

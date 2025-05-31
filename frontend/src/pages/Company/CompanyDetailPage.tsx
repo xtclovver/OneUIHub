@@ -17,6 +17,17 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ModelCard from '../../components/common/ModelCard';
 import { ModelFilters } from '../../types';
 
+// Функция для преобразования относительных URL в полные
+const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
+  if (!logoUrl) return undefined;
+  
+  if (logoUrl.startsWith('/uploads/')) {
+    return `http://localhost:8080${logoUrl}`;
+  }
+  
+  return logoUrl;
+};
+
 const CompanyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const dispatch = useDispatch();
@@ -120,11 +131,22 @@ const CompanyDetailPage: React.FC = () => {
           <div className="flex items-center mb-6">
             <div className="w-20 h-20 glass-card flex items-center justify-center mr-6">
               {selectedCompany.logo_url ? (
-                <img
-                  src={selectedCompany.logo_url}
-                  alt={`${selectedCompany.name} logo`}
-                  className="w-16 h-16 object-contain rounded-lg"
-                />
+                <div className="relative w-full h-full">
+                  <img
+                    src={getFullLogoUrl(selectedCompany.logo_url)}
+                    alt={`${selectedCompany.name} logo`}
+                    className="w-16 h-16 object-contain rounded-lg"
+                    onError={(e) => {
+                      // При ошибке загрузки показываем дефолтную иконку
+                      e.currentTarget.style.display = 'none';
+                      const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallbackElement) {
+                        fallbackElement.style.display = 'block';
+                      }
+                    }}
+                  />
+                  <BuildingOfficeIcon className="w-10 h-10 text-ai-gray-400 hidden" />
+                </div>
               ) : (
                 <BuildingOfficeIcon className="w-10 h-10 text-ai-gray-400" />
               )}

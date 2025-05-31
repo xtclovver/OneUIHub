@@ -10,8 +10,8 @@ type Company struct {
 	LogoURL     string    `json:"logo_url" gorm:"type:varchar(255)"`
 	Description string    `json:"description" gorm:"type:text"`
 	ExternalID  string    `json:"external_id" gorm:"type:varchar(255);uniqueIndex"`
-	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	CreatedAt   time.Time `json:"created_at" gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
 
 	// Связи
 	Models []Model `json:"models,omitempty" gorm:"foreignKey:CompanyID"`

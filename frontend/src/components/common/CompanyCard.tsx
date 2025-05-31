@@ -13,6 +13,17 @@ interface CompanyCardProps {
   index?: number;
 }
 
+// Функция для преобразования относительных URL в полные
+const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
+  if (!logoUrl) return undefined;
+  
+  if (logoUrl.startsWith('/uploads/')) {
+    return `http://localhost:8080${logoUrl}`;
+  }
+  
+  return logoUrl;
+};
+
 const CompanyCard: React.FC<CompanyCardProps> = ({ company, index = 0 }) => {
   return (
     <motion.div
@@ -27,11 +38,24 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company, index = 0 }) => {
           {/* Логотип компании */}
           <div className="flex items-center justify-center mb-4">
             {company.logo_url ? (
-              <img
-                src={company.logo_url}
-                alt={`${company.name} logo`}
-                className="w-16 h-16 object-contain rounded-lg"
-              />
+              <div className="relative">
+                <img
+                  src={getFullLogoUrl(company.logo_url)}
+                  alt={`${company.name} logo`}
+                  className="w-16 h-16 object-contain rounded-lg"
+                  onError={(e) => {
+                    // При ошибке загрузки показываем дефолтную иконку
+                    e.currentTarget.style.display = 'none';
+                    const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallbackElement) {
+                      fallbackElement.style.display = 'flex';
+                    }
+                  }}
+                />
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hidden items-center justify-center">
+                  <BuildingOfficeIcon className="w-8 h-8 text-white" />
+                </div>
+              </div>
             ) : (
               <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
                 <BuildingOfficeIcon className="w-8 h-8 text-white" />
