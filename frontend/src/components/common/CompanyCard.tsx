@@ -7,22 +7,12 @@ import {
   ArrowRightIcon 
 } from '@heroicons/react/24/outline';
 import { Company } from '../../types';
+import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
 
 interface CompanyCardProps {
   company: Company;
   index?: number;
 }
-
-// Функция для преобразования относительных URL в полные
-const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
-  if (!logoUrl) return undefined;
-  
-  if (logoUrl.startsWith('/uploads/')) {
-    return `http://localhost:8080${logoUrl}`;
-  }
-  
-  return logoUrl;
-};
 
 const CompanyCard: React.FC<CompanyCardProps> = ({ company, index = 0 }) => {
   return (
@@ -43,14 +33,7 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company, index = 0 }) => {
                   src={getFullLogoUrl(company.logo_url)}
                   alt={`${company.name} logo`}
                   className="w-16 h-16 object-contain rounded-lg"
-                  onError={(e) => {
-                    // При ошибке загрузки показываем дефолтную иконку
-                    e.currentTarget.style.display = 'none';
-                    const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallbackElement) {
-                      fallbackElement.style.display = 'flex';
-                    }
-                  }}
+                  onError={(e) => handleLogoError(e, company.logo_url)}
                 />
                 <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hidden items-center justify-center">
                   <BuildingOfficeIcon className="w-8 h-8 text-white" />

@@ -19,6 +19,8 @@ import { modelsAPI } from '../../api/models';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ModelCapabilities from '../../components/common/ModelCapabilities';
 import { RateLimit, Tier } from '../../types';
+import { useCurrency } from '../../hooks/useCurrency';
+import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
 
 const ModelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,11 +52,17 @@ const ModelDetailPage: React.FC = () => {
     // Если у компании есть логотип, используем его
     if (company?.logo_url) {
       return (
-        <img
-          src={company.logo_url}
-          alt={`${company.name} logo`}
-          className="w-16 h-16 object-contain rounded-lg"
-        />
+        <div className="relative">
+          <img
+            src={getFullLogoUrl(company.logo_url)}
+            alt={`${company.name} logo`}
+            className="w-20 h-20 object-contain rounded-lg"
+            onError={(e) => handleLogoError(e, company.logo_url)}
+          />
+          <div className="w-20 h-20 bg-gray-200 rounded-lg hidden items-center justify-center text-3xl">
+            ⚡
+          </div>
+        </div>
       );
     }
     
@@ -181,7 +189,7 @@ const ModelDetailPage: React.FC = () => {
         >
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center">
-              <div className="w-20 h-20 bg-gradient-ai rounded-2xl flex items-center justify-center mr-6 text-3xl">
+              <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mr-6 text-3xl">
                 {getModelIcon()}
               </div>
               <div>

@@ -8,25 +8,16 @@ import {
   CpuChipIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  XMarkIcon
+  XMarkIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { RootState } from '../../redux/store';
-import { fetchCompanyById } from '../../redux/slices/companiesSlice';
-import { fetchModels } from '../../redux/slices/modelsSlice';
+import { fetchCompanyById, clearSelectedCompany } from '../../redux/slices/companiesSlice';
+import { fetchModelsByCompany } from '../../redux/slices/modelsSlice';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ModelCard from '../../components/common/ModelCard';
 import { ModelFilters } from '../../types';
-
-// Функция для преобразования относительных URL в полные
-const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
-  if (!logoUrl) return undefined;
-  
-  if (logoUrl.startsWith('/uploads/')) {
-    return `http://localhost:8080${logoUrl}`;
-  }
-  
-  return logoUrl;
-};
+import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
 
 const CompanyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,9 +32,14 @@ const CompanyDetailPage: React.FC = () => {
   useEffect(() => {
     if (id) {
       dispatch(fetchCompanyById(id) as any);
-      dispatch(fetchModels({ company_id: id, ...filters }) as any);
+      dispatch(fetchModelsByCompany(id) as any);
     }
-  }, [dispatch, id, filters]);
+    
+    // Очищаем выбранную компанию при размонтировании компонента
+    return () => {
+      dispatch(clearSelectedCompany());
+    };
+  }, [dispatch, id]);
 
   const filteredModels = models.filter(model =>
     model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -135,17 +131,12 @@ const CompanyDetailPage: React.FC = () => {
                   <img
                     src={getFullLogoUrl(selectedCompany.logo_url)}
                     alt={`${selectedCompany.name} logo`}
-                    className="w-16 h-16 object-contain rounded-lg"
-                    onError={(e) => {
-                      // При ошибке загрузки показываем дефолтную иконку
-                      e.currentTarget.style.display = 'none';
-                      const fallbackElement = e.currentTarget.nextElementSibling as HTMLElement;
-                      if (fallbackElement) {
-                        fallbackElement.style.display = 'block';
-                      }
-                    }}
+                    className="w-24 h-24 object-contain rounded-2xl"
+                    onError={(e) => handleLogoError(e, selectedCompany.logo_url)}
                   />
-                  <BuildingOfficeIcon className="w-10 h-10 text-ai-gray-400 hidden" />
+                  <div className="w-24 h-24 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl hidden items-center justify-center">
+                    <BuildingOfficeIcon className="w-12 h-12 text-white" />
+                  </div>
                 </div>
               ) : (
                 <BuildingOfficeIcon className="w-10 h-10 text-ai-gray-400" />

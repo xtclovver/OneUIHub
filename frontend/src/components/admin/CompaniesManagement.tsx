@@ -11,6 +11,7 @@ import {
   XCircleIcon,
   CpuChipIcon,
   LinkIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import {
   createCompany,
@@ -27,21 +28,11 @@ import {
 import { companiesAPI } from '../../api/companies';
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../../types/admin';
 import { RootState } from '../../redux/store';
+import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
 
 interface CompaniesManagementProps {
   onClose?: () => void;
 }
-
-// Функция для преобразования относительных URL в полные
-const getFullLogoUrl = (logoUrl: string | undefined): string | undefined => {
-  if (!logoUrl) return undefined;
-  
-  if (logoUrl.startsWith('/uploads/')) {
-    return `http://localhost:8080${logoUrl}`;
-  }
-  
-  return logoUrl;
-};
 
 const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) => {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -285,24 +276,15 @@ const CompaniesManagement: React.FC<CompaniesManagementProps> = ({ onClose }) =>
             <div key={company.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  {company.logo_url ? (
-                    <img 
-                      src={getFullLogoUrl(company.logo_url)} 
-                      alt={company.name}
-                      className="w-10 h-10 rounded-lg object-cover"
-                      onError={(e) => {
-                        // При ошибке загрузки показываем иконку по умолчанию
-                        e.currentTarget.style.display = 'none';
-                        const iconElement = e.currentTarget.nextElementSibling as HTMLElement;
-                        if (iconElement) {
-                          iconElement.style.display = 'block';
-                        }
-                      }}
-                    />
-                  ) : null}
-                  <BuildingOfficeIcon 
-                    className={`h-10 w-10 text-gray-400 ${company.logo_url ? 'hidden' : 'block'}`} 
+                  <img
+                    src={getFullLogoUrl(company.logo_url)}
+                    alt={`${company.name} logo`}
+                    className="w-10 h-10 object-contain rounded"
+                    onError={(e) => handleLogoError(e, company.logo_url)}
                   />
+                  <div className="w-10 h-10 bg-gray-200 rounded hidden items-center justify-center">
+                    <BuildingOfficeIcon className="w-5 h-5 text-gray-400" />
+                  </div>
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{company.name}</h3>
                     <p className="text-sm text-gray-500">
@@ -840,22 +822,15 @@ const EditCompanyModal: React.FC<{
               {/* Текущий логотип */}
               {formData.logo_url && !logoFile && (
                 <div className="flex items-center space-x-3">
-                  <img 
-                    src={getFullLogoUrl(formData.logo_url)} 
-                    alt="Текущий логотип" 
-                    className="w-16 h-16 object-contain border rounded"
-                    onError={(e) => {
-                      // При ошибке загрузки скрываем изображение и показываем сообщение
-                      e.currentTarget.style.display = 'none';
-                      const container = e.currentTarget.parentElement;
-                      if (container) {
-                        const errorMsg = document.createElement('div');
-                        errorMsg.className = 'text-sm text-red-600';
-                        errorMsg.textContent = 'Ошибка загрузки логотипа';
-                        container.appendChild(errorMsg);
-                      }
-                    }}
+                  <img
+                    src={getFullLogoUrl(formData.logo_url)}
+                    alt="Превью логотипа"
+                    className="w-16 h-16 object-contain rounded-lg border border-gray-200"
+                    onError={(e) => handleLogoError(e, formData.logo_url)}
                   />
+                  <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 hidden items-center justify-center">
+                    <PhotoIcon className="w-8 h-8 text-gray-400" />
+                  </div>
                   <button
                     type="button"
                     onClick={handleRemoveCurrentLogo}
@@ -988,24 +963,15 @@ const CompanyDetailsModal: React.FC<{
         <div className="space-y-6">
           {/* Основная информация */}
           <div className="flex items-center space-x-4">
-            {company.logo_url ? (
-              <img 
-                src={getFullLogoUrl(company.logo_url)} 
-                alt={company.name}
-                className="w-16 h-16 rounded-lg object-cover"
-                onError={(e) => {
-                  // При ошибке загрузки показываем иконку по умолчанию
-                  e.currentTarget.style.display = 'none';
-                  const iconElement = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (iconElement) {
-                    iconElement.style.display = 'block';
-                  }
-                }}
-              />
-            ) : null}
-            <BuildingOfficeIcon 
-              className={`h-16 w-16 text-gray-400 ${company.logo_url ? 'hidden' : 'block'}`} 
+            <img
+              src={getFullLogoUrl(company.logo_url)}
+              alt={`${company.name} logo`}
+              className="w-16 h-16 object-contain rounded-lg"
+              onError={(e) => handleLogoError(e, company.logo_url)}
             />
+            <div className="w-16 h-16 bg-gray-100 rounded-lg hidden items-center justify-center">
+              <BuildingOfficeIcon className="w-8 h-8 text-gray-400" />
+            </div>
             <div>
               <h4 className="text-xl font-semibold text-gray-900">{company.name}</h4>
               <p className="text-sm text-gray-500">ID: {company.id}</p>

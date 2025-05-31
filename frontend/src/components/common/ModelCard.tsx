@@ -14,6 +14,7 @@ import {
 import { Model } from '../../types';
 import { RootState } from '../../redux/store';
 import { useCurrency } from '../../hooks/useCurrency';
+import { getFullLogoUrl, handleLogoError } from '../../utils/logoUtils';
 
 interface ModelCardProps {
   model: Model;
@@ -68,11 +69,17 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
     // Если у компании есть логотип, используем его
     if (company?.logo_url) {
       return (
-        <img
-          src={company.logo_url}
-          alt={`${company.name} logo`}
-          className="w-8 h-8 object-contain rounded"
-        />
+        <div className="relative">
+          <img
+            src={getFullLogoUrl(company.logo_url)}
+            alt={`${company.name} logo`}
+            className="w-12 h-12 object-contain rounded"
+            onError={(e) => handleLogoError(e, company.logo_url)}
+          />
+          <div className="w-12 h-12 bg-gray-200 rounded hidden items-center justify-center text-xl">
+            ⚡
+          </div>
+        </div>
       );
     }
     
@@ -114,7 +121,7 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, index = 0, showCompany = f
           {/* Заголовок с иконкой */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-ai rounded-lg flex items-center justify-center text-2xl">
+              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
                 {getModelIcon()}
               </div>
               <div>
