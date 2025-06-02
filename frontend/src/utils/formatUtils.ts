@@ -51,6 +51,39 @@ export const formatCurrency = (value: number): string => {
 };
 
 /**
+ * Форматирует стоимость токена для отображения (за 1 миллион токенов)
+ * @param costPerToken Стоимость за 1 токен
+ * @returns Форматированная строка с валютой за миллион токенов
+ */
+export const formatTokenCost = (costPerToken: number): string => {
+  const costPerMillion = costPerToken * 1000000;
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(costPerMillion);
+};
+
+/**
+ * Конвертирует стоимость за 1 токен в стоимость за 1 миллион токенов для отображения в форме
+ * @param costPerToken Стоимость за 1 токен
+ * @returns Числовое значение стоимости за миллион токенов
+ */
+export const tokenCostToMillionCost = (costPerToken: number): number => {
+  return costPerToken * 1000000;
+};
+
+/**
+ * Конвертирует стоимость за 1 миллион токенов в стоимость за 1 токен для сохранения
+ * @param costPerMillion Стоимость за миллион токенов
+ * @returns Числовое значение стоимости за 1 токен
+ */
+export const millionCostToTokenCost = (costPerMillion: number): number => {
+  return costPerMillion / 1000000;
+};
+
+/**
  * Форматирует большие числа с разделителями тысяч
  * @param value Числовое значение
  * @returns Форматированная строка

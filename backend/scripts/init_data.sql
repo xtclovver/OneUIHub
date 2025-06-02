@@ -125,14 +125,28 @@ CREATE TABLE IF NOT EXISTS requests (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
   model_id VARCHAR(36) NOT NULL,
+  api_key_id VARCHAR(36),  -- Добавляем ссылку на API ключ, но без CASCADE DELETE
+  external_request_id VARCHAR(255),  -- ID запроса в LiteLLM
   input_tokens INT NOT NULL,
   output_tokens INT NOT NULL,
   input_cost DECIMAL(10, 6) NOT NULL,
   output_cost DECIMAL(10, 6) NOT NULL,
   total_cost DECIMAL(10, 6) NOT NULL,
+  status VARCHAR(50) DEFAULT 'completed',  -- Статус запроса
+  call_type VARCHAR(50),  -- Тип вызова (chat, completion, etc)
+  model_name VARCHAR(255),  -- Название модели из LiteLLM
+  provider VARCHAR(100),  -- Провайдер (openai, anthropic, etc)
+  start_time TIMESTAMP,  -- Время начала запроса
+  end_time TIMESTAMP,    -- Время окончания запроса
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE
+  FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE SET NULL,
+  FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL,  -- SET NULL вместо CASCADE
+  INDEX idx_requests_user_id (user_id),
+  INDEX idx_requests_model_id (model_id),
+  INDEX idx_requests_api_key_id (api_key_id),
+  INDEX idx_requests_external_id (external_request_id),
+  INDEX idx_requests_created_at (created_at)
 );
 
 -- Создание таблицы лимитов пользователей (после пользователей)
@@ -314,3 +328,93 @@ INSERT INTO user_spendings (user_id, total_spent, created_at, updated_at) VALUES
 
 INSERT INTO user_limits (user_id, monthly_token_limit, balance) VALUES
 ('user-admin-001', NULL, 1000.00);
+
+-- Миграция для обновления таблицы requests
+-- Добавляем новые поля если их нет
+
+-- Добавляем поле api_key_id если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'api_key_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN api_key_id VARCHAR(36) COMMENT ''Ссылка на API ключ''', 'SELECT ''Column api_key_id already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле external_request_id если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'external_request_id');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN external_request_id VARCHAR(255) COMMENT ''ID запроса в LiteLLM''', 'SELECT ''Column external_request_id already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле status если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'status');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN status VARCHAR(50) DEFAULT ''completed'' COMMENT ''Статус запроса''', 'SELECT ''Column status already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле call_type если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'call_type');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN call_type VARCHAR(50) COMMENT ''Тип вызова (chat, completion, etc)''', 'SELECT ''Column call_type already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле model_name если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'model_name');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN model_name VARCHAR(255) COMMENT ''Название модели из LiteLLM''', 'SELECT ''Column model_name already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле provider если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'provider');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN provider VARCHAR(100) COMMENT ''Провайдер (openai, anthropic, etc)''', 'SELECT ''Column provider already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле start_time если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'start_time');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN start_time TIMESTAMP COMMENT ''Время начала запроса''', 'SELECT ''Column start_time already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем поле end_time если его нет
+SET @column_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND COLUMN_NAME = 'end_time');
+SET @sql = IF(@column_exists = 0, 'ALTER TABLE requests ADD COLUMN end_time TIMESTAMP COMMENT ''Время окончания запроса''', 'SELECT ''Column end_time already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем внешние ключи если их нет
+SET @fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND CONSTRAINT_NAME = 'fk_requests_api_key_id');
+SET @sql = IF(@fk_exists = 0, 'ALTER TABLE requests ADD CONSTRAINT fk_requests_api_key_id FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL', 'SELECT ''Foreign key fk_requests_api_key_id already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Добавляем индексы если их нет
+SET @index_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND INDEX_NAME = 'idx_requests_api_key_id');
+SET @sql = IF(@index_exists = 0, 'ALTER TABLE requests ADD INDEX idx_requests_api_key_id (api_key_id)', 'SELECT ''Index idx_requests_api_key_id already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'requests' AND INDEX_NAME = 'idx_requests_external_id');
+SET @sql = IF(@index_exists = 0, 'ALTER TABLE requests ADD INDEX idx_requests_external_id (external_request_id)', 'SELECT ''Index idx_requests_external_id already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

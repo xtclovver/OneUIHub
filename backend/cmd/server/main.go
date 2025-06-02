@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"oneui-hub/internal/api/handlers"
@@ -54,9 +55,21 @@ func main() {
 	userService := service.NewUserService(userRepo, userLimitRepo, tierRepo)
 	modelService := service.NewModelService(modelRepo, companyRepo, modelConfigRepo, litellmClient)
 	budgetService := service.NewBudgetService(budgetRepo, userRepo, litellmClient)
-	currencyService := service.NewCurrencyService(exchangeRateRepo, currencyRepo, "")
+	currencyService := service.NewCurrencyService(exchangeRateRepo, currencyRepo, cfg.Currency.ExchangeRateAPIKey)
 	tierService := service.NewTierService(tierRepo, userRepo, userSpendingRepo)
 	rateLimitService := service.NewRateLimitService(rateLimitRepo, modelRepo, tierRepo)
+
+	// Автоматическое обновление курсов валют при старте сервера
+	if cfg.Currency.ExchangeRateAPIKey != "" {
+		log.Printf("Обновление курсов валют...")
+		if err := currencyService.UpdateExchangeRates(context.Background()); err != nil {
+			log.Printf("Предупреждение: не удалось обновить курсы валют: %v", err)
+		} else {
+			log.Printf("Курсы валют успешно обновлены")
+		}
+	} else {
+		log.Printf("Предупреждение: API ключ для валютного сервиса не настроен (EXCHANGE_RATE_API_KEY)")
+	}
 
 	authHandler := handlers.NewAuthHandler(userService, jwtManager)
 	modelHandler := handlers.NewModelHandler(modelService)

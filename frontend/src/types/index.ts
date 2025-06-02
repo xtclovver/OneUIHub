@@ -115,6 +115,23 @@ export interface UserLimits {
   balance: number;
 }
 
+// Currency types
+export interface Currency {
+  id: string;
+  name: string;
+  symbol: string;
+}
+
+export interface ExchangeRate {
+  id: string;
+  from_currency: string;
+  to_currency: string;
+  rate: number;
+  updated_at: string;
+  from?: Currency;
+  to?: Currency;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data: T;

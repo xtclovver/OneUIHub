@@ -15,6 +15,7 @@ type Config struct {
 	Database DatabaseConfig
 	Auth     AuthConfig
 	LiteLLM  LiteLLMConfig
+	Currency CurrencyConfig
 }
 
 type ServerConfig struct {
@@ -40,6 +41,10 @@ type LiteLLMConfig struct {
 	BaseURL string
 	APIKey  string
 	Timeout time.Duration
+}
+
+type CurrencyConfig struct {
+	ExchangeRateAPIKey string
 }
 
 func Load() (*Config, error) {
@@ -80,6 +85,9 @@ func Load() (*Config, error) {
 			BaseURL: getEnv("LITELLM_BASE_URL", "http://localhost:4000"),
 			APIKey:  getEnv("LITELLM_API_KEY", ""),
 			Timeout: getDurationEnv("LITELLM_TIMEOUT", 30*time.Second),
+		},
+		Currency: CurrencyConfig{
+			ExchangeRateAPIKey: getEnv("EXCHANGE_RATE_API_KEY", ""),
 		},
 	}
 

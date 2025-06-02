@@ -26,7 +26,9 @@ func (h *CurrencyHandler) GetSupportedCurrencies(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, currencies)
+	c.JSON(http.StatusOK, gin.H{
+		"data": currencies,
+	})
 }
 
 // GetExchangeRates получает курсы валют
@@ -43,16 +45,24 @@ func (h *CurrencyHandler) GetExchangeRates(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"from_currency": fromCurrency,
-			"to_currency":   toCurrency,
-			"rate":          rate,
+			"data": gin.H{
+				"from_currency": fromCurrency,
+				"to_currency":   toCurrency,
+				"rate":          rate,
+			},
 		})
 		return
 	}
 
-	// Получить все курсы (для этого нужно добавить метод в сервис)
+	// Получить все курсы
+	rates, err := h.currencyService.GetAllExchangeRates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Use query parameters 'from' and 'to' to get specific exchange rate",
+		"data": rates,
 	})
 }
 
@@ -85,5 +95,18 @@ func (h *CurrencyHandler) ConvertCurrency(c *gin.Context) {
 		"from_currency":    request.FromCurrency,
 		"converted_amount": convertedAmount,
 		"to_currency":      request.ToCurrency,
+	})
+}
+
+// UpdateExchangeRates обновляет курсы валют из внешнего API
+func (h *CurrencyHandler) UpdateExchangeRates(c *gin.Context) {
+	err := h.currencyService.UpdateExchangeRates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Exchange rates updated successfully",
 	})
 }

@@ -1,16 +1,5 @@
 import { useState, useEffect } from 'react';
-
-interface ExchangeRate {
-  from_currency: string;
-  to_currency: string;
-  rate: number;
-}
-
-interface Currency {
-  id: string;
-  name: string;
-  symbol: string;
-}
+import { ExchangeRate, Currency } from '../types';
 
 export const useCurrency = () => {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>([]);
@@ -50,7 +39,13 @@ export const useCurrency = () => {
       console.error('Failed to fetch exchange rates:', error);
       // Используем моковые данные при ошибке
       setExchangeRates([
-        { from_currency: 'USD', to_currency: 'RUB', rate: 95.0 }
+        { 
+          id: 'usd-rub',
+          from_currency: 'USD', 
+          to_currency: 'RUB', 
+          rate: 95.0,
+          updated_at: new Date().toISOString()
+        }
       ]);
     } finally {
       setLoading(false);
@@ -86,12 +81,39 @@ export const useCurrency = () => {
     };
   };
 
+  const updateExchangeRates = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/admin/currencies/update-rates', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        // Обновляем курсы после успешного обновления
+        await fetchExchangeRates();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to update exchange rates:', error);
+      return false;
+    }
+  };
+
   return {
     exchangeRates,
     currencies,
     loading,
     convertPrice,
     formatPrice,
-    getPriceInBothCurrencies
+    getPriceInBothCurrencies,
+    updateExchangeRates,
+    refetch: () => {
+      fetchCurrencies();
+      fetchExchangeRates();
+    }
   };
 }; 

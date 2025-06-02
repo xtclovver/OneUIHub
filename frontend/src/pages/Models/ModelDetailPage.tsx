@@ -28,6 +28,7 @@ const ModelDetailPage: React.FC = () => {
   const dispatch = useDispatch();
   const { selectedModel, isLoading } = useSelector((state: RootState) => state.models);
   const { companies } = useSelector((state: RootState) => state.companies);
+  const { getPriceInBothCurrencies, loading: currencyLoading } = useCurrency();
 
   useEffect(() => {
     if (id) {
@@ -234,22 +235,42 @@ const ModelDetailPage: React.FC = () => {
           )}
 
           {/* Стоимость */}
-          {selectedModel.model_config && !selectedModel.model_config.is_free && (
+          {selectedModel.model_config && !selectedModel.model_config.is_free && !currencyLoading && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="glass-card p-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Входные токены</h4>
-                <p className="text-3xl font-bold text-ai-orange">
-                  ${((selectedModel.model_config.input_token_cost || 0) * 1000).toFixed(6)}
-                </p>
-                <p className="text-sm text-ai-gray-400">за 1K токенов</p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-3xl font-bold text-ai-orange">
+                      {getPriceInBothCurrencies((selectedModel.model_config.input_token_cost || 0) * 1000).usd}
+                    </p>
+                    <p className="text-sm text-ai-gray-400">за 1K токенов</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-gray-700">
+                      {getPriceInBothCurrencies((selectedModel.model_config.input_token_cost || 0) * 1000).rub}
+                    </p>
+                    <p className="text-xs text-ai-gray-400">за 1K токенов</p>
+                  </div>
+                </div>
               </div>
               
               <div className="glass-card p-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Выходные токены</h4>
-                <p className="text-3xl font-bold text-ai-orange">
-                  ${((selectedModel.model_config.output_token_cost || 0) * 1000).toFixed(6)}
-                </p>
-                <p className="text-sm text-ai-gray-400">за 1K токенов</p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-3xl font-bold text-ai-orange">
+                      {getPriceInBothCurrencies((selectedModel.model_config.output_token_cost || 0) * 1000).usd}
+                    </p>
+                    <p className="text-sm text-ai-gray-400">за 1K токенов</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-gray-700">
+                      {getPriceInBothCurrencies((selectedModel.model_config.output_token_cost || 0) * 1000).rub}
+                    </p>
+                    <p className="text-xs text-ai-gray-400">за 1K токенов</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

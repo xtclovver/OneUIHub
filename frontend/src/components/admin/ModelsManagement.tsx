@@ -20,7 +20,7 @@ import {
   syncCompaniesFromLiteLLM,
   adminAPI,
 } from '../../api/admin';
-import { formatCurrency, formatNumber, formatLimitEditValue, parseLimitValue } from '../../utils/formatUtils';
+import { formatCurrency, formatNumber, formatLimitEditValue, parseLimitValue, formatTokenCost, tokenCostToMillionCost, millionCostToTokenCost } from '../../utils/formatUtils';
 import { ModelGroupInfo, CreateModelRequest, UpdateModelRequest } from '../../types/admin';
 import { RateLimit, Tier } from '../../types';
 
@@ -220,8 +220,8 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                   <div>Режим: {group.mode}</div>
                   <div>Входные токены: {formatNumber(group.max_input_tokens)}</div>
                   <div>Выходные токены: {formatNumber(group.max_output_tokens)}</div>
-                  <div>Стоимость входа: {formatCurrency(group.input_cost_per_token)}</div>
-                  <div>Стоимость выхода: {formatCurrency(group.output_cost_per_token)}</div>
+                  <div>Стоимость входа: {formatTokenCost(group.input_cost_per_token)} за 1М токенов</div>
+                  <div>Стоимость выхода: {formatTokenCost(group.output_cost_per_token)} за 1М токенов</div>
                 </div>
               </div>
             </div>
@@ -320,8 +320,8 @@ const ModelsManagement: React.FC<ModelsManagementProps> = ({ onClose }) => {
                       <span>Выходные токены: {model.max_output_tokens ? formatNumber(model.max_output_tokens) : 'Не указано'}</span>
                     </div>
                     <div className="flex space-x-4 mt-1">
-                      <span>Стоимость входа: {formatCurrency(model.model_config?.input_token_cost || 0)} за токен</span>
-                      <span>Стоимость выхода: {formatCurrency(model.model_config?.output_token_cost || 0)} за токен</span>
+                      <span>Стоимость входа: {formatTokenCost(model.model_config?.input_token_cost || 0)} за 1М токенов</span>
+                      <span>Стоимость выхода: {formatTokenCost(model.model_config?.output_token_cost || 0)} за 1М токенов</span>
                     </div>
                   </div>
                   
@@ -631,9 +631,9 @@ const EditModelModal: React.FC<{
       mode: model.mode,
       litellm_provider: model.providers,
       
-      // Стоимость токенов
-      input_cost_per_token: model.model_config?.input_token_cost || 0,
-      output_cost_per_token: model.model_config?.output_token_cost || 0,
+      // Стоимость токенов (конвертируем в формат "за миллион токенов")
+      input_cost_per_token: tokenCostToMillionCost(model.model_config?.input_token_cost || 0),
+      output_cost_per_token: tokenCostToMillionCost(model.model_config?.output_token_cost || 0),
       
       // Поддержка функций
       supports_vision: model.supports_vision || false,
@@ -901,8 +901,8 @@ const EditModelModal: React.FC<{
       model_config: {
         is_enabled: isEnabled,
         is_free: isFree,
-        input_token_cost: formData.model_info?.input_cost_per_token || 0,
-        output_token_cost: formData.model_info?.output_cost_per_token || 0,
+        input_token_cost: millionCostToTokenCost(formData.model_info?.input_cost_per_token || 0),
+        output_token_cost: millionCostToTokenCost(formData.model_info?.output_cost_per_token || 0),
       }
     };
     onSubmit(updatedFormData);
@@ -1079,11 +1079,11 @@ const EditModelModal: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Стоимость входных токенов (за 1 токен)
+                  Стоимость входных токенов (за 1 миллион токенов)
                 </label>
                 <input
                   type="number"
-                  step="0.000001"
+                  step="0.01"
                   value={formData.model_info?.input_cost_per_token || ''}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -1093,20 +1093,20 @@ const EditModelModal: React.FC<{
                     } 
                   }))}
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000030"
+                  placeholder="30.00"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Текущая: {formatCurrency(model.model_config?.input_token_cost || 0)}
+                  Текущая: {formatTokenCost(model.model_config?.input_token_cost || 0)}
                 </p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Стоимость выходных токенов (за 1 токен)
+                  Стоимость выходных токенов (за 1 миллион токенов)
                 </label>
                 <input
                   type="number"
-                  step="0.000001"
+                  step="0.01"
                   value={formData.model_info?.output_cost_per_token || ''}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -1116,10 +1116,10 @@ const EditModelModal: React.FC<{
                     } 
                   }))}
                   className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.000060"
+                  placeholder="60.00"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Текущая: {formatCurrency(model.model_config?.output_token_cost || 0)}
+                  Текущая: {formatTokenCost(model.model_config?.output_token_cost || 0)}
                 </p>
               </div>
             </div>
@@ -1352,12 +1352,12 @@ const ModelDetailsModal: React.FC<{
             <h5 className="text-md font-medium text-gray-900 mb-2">Стоимость</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <span className="text-sm font-medium text-gray-500">Входные токены:</span>
-                <p className="text-sm text-gray-900">{formatCurrency(model.model_config?.input_token_cost || 0)}</p>
+                <span className="text-sm font-medium text-gray-500">Входные токены (за 1М):</span>
+                <p className="text-sm text-gray-900">{formatTokenCost(model.model_config?.input_token_cost || 0)}</p>
               </div>
               <div>
-                <span className="text-sm font-medium text-gray-500">Выходные токены:</span>
-                <p className="text-sm text-gray-900">{formatCurrency(model.model_config?.output_token_cost || 0)}</p>
+                <span className="text-sm font-medium text-gray-500">Выходные токены (за 1М):</span>
+                <p className="text-sm text-gray-900">{formatTokenCost(model.model_config?.output_token_cost || 0)}</p>
               </div>
             </div>
           </div>

@@ -103,22 +103,22 @@ const HomePage: React.FC = () => {
         <div className="absolute inset-0 hero-gradient"></div>
         <div className="relative content-wrapper">
           <motion.div
-            className="text-center py-20 lg:py-32"
+            className="text-center py-12 md:py-20 lg:py-32"
             initial="hidden"
             animate="visible"
             variants={containerVariants}
           >
             <motion.div
-              className="flex justify-center mb-8"
+              className="flex justify-center mb-6 md:mb-8"
               variants={itemVariants}
             >
-              <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center animate-pulse">
-                <SparklesIcon className="w-10 h-10 text-white" />
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center animate-pulse">
+                <SparklesIcon className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
             </motion.div>
             
             <motion.h1
-              className="text-5xl lg:text-7xl font-bold text-gray-900 mb-6"
+              className="text-3xl md:text-5xl lg:text-7xl font-bold text-gray-900 mb-4 md:mb-6 px-4"
               variants={itemVariants}
             >
               Будущее AI
@@ -126,7 +126,7 @@ const HomePage: React.FC = () => {
             </motion.h1>
             
             <motion.p
-              className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed"
+              className="text-base md:text-xl text-gray-600 mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed px-4"
               variants={itemVariants}
             >
               OneAI Hub объединяет лучшие AI модели от ведущих компаний в единый API. 
@@ -134,14 +134,14 @@ const HomePage: React.FC = () => {
             </motion.p>
             
             <motion.div
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+              className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center px-4"
               variants={itemVariants}
             >
-              <Link to="/register" className="btn-primary text-lg px-8 py-4 flex items-center">
+              <Link to="/register" className="btn-primary text-base md:text-lg px-6 md:px-8 py-3 md:py-4 flex items-center w-full sm:w-auto justify-center">
                 Начать бесплатно
-                <ArrowRightIcon className="w-5 h-5 ml-2" />
+                <ArrowRightIcon className="w-4 h-4 md:w-5 md:h-5 ml-2" />
               </Link>
-              <Link to="/docs" className="btn-secondary text-lg px-8 py-4">
+              <Link to="/docs" className="btn-secondary text-base md:text-lg px-6 md:px-8 py-3 md:py-4 w-full sm:w-auto text-center">
                 Документация API
               </Link>
             </motion.div>
@@ -152,16 +152,16 @@ const HomePage: React.FC = () => {
       {/* Компании */}
       <section className="content-wrapper">
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="responsive-text-4xl font-bold text-gray-900 mb-3 md:mb-4">
             Доверенные партнеры
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="responsive-text-lg text-gray-600">
             Мы интегрируем лучшие AI модели от ведущих компаний
           </p>
         </motion.div>
@@ -170,7 +170,7 @@ const HomePage: React.FC = () => {
           <LoadingSpinner text="Загрузка компаний..." />
         ) : (
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12"
+            className="card-grid mb-8 md:mb-12"
             initial="hidden"
             whileInView="visible"
             variants={containerVariants}
@@ -187,7 +187,7 @@ const HomePage: React.FC = () => {
         )}
 
         <motion.div
-          className="text-center mb-20"
+          className="text-center mb-12 md:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
@@ -203,22 +203,22 @@ const HomePage: React.FC = () => {
       {/* Функции */}
       <section className="content-wrapper">
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="responsive-text-4xl font-bold text-gray-900 mb-3 md:mb-4">
             Почему выбирают нас
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="responsive-text-lg text-gray-600">
             Мощные функции для создания следующего поколения AI приложений
           </p>
         </motion.div>
 
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mb-12 md:mb-20"
           initial="hidden"
           whileInView="visible"
           variants={containerVariants}
@@ -229,14 +229,14 @@ const HomePage: React.FC = () => {
             return (
               <motion.div
                 key={index}
-                className="glass-card p-6 card-hover"
+                className="glass-card p-4 md:p-6 card-hover"
                 variants={itemVariants}
               >
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-r from-orange-100 to-orange-200 flex items-center justify-center mb-4`}>
-                  <Icon className={`w-6 h-6 ${feature.color}`} />
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg bg-gradient-to-r from-orange-100 to-orange-200 flex items-center justify-center mb-3 md:mb-4`}>
+                  <Icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.color}`} />
                 </div>
-                <h3 className="text-gray-900 font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <h3 className="text-gray-900 font-semibold mb-2 responsive-text-base">{feature.title}</h3>
+                <p className="text-gray-600 responsive-text-sm leading-relaxed">
                   {feature.description}
                 </p>
               </motion.div>
@@ -248,22 +248,22 @@ const HomePage: React.FC = () => {
       {/* API Лимиты */}
       <section className="content-wrapper">
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="responsive-text-4xl font-bold text-gray-900 mb-3 md:mb-4">
             Гибкие лимиты API
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="responsive-text-lg text-gray-600">
             Настраиваемые ограничения для контроля использования и расходов
           </p>
         </motion.div>
 
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20"
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto mb-12 md:mb-20"
           initial="hidden"
           whileInView="visible"
           variants={containerVariants}
@@ -274,20 +274,20 @@ const HomePage: React.FC = () => {
             return (
               <motion.div
                 key={index}
-                className="glass-card p-8 card-hover text-center"
+                className="glass-card p-6 md:p-8 card-hover text-center"
                 variants={itemVariants}
               >
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mb-6 mx-auto">
-                  <Icon className="w-8 h-8 text-white" />
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mb-4 md:mb-6 mx-auto">
+                  <Icon className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{limit.title}</h3>
-                <p className="text-gray-600 text-sm mb-6">{limit.description}</p>
+                <h3 className="responsive-text-xl font-bold text-gray-900 mb-2 md:mb-3">{limit.title}</h3>
+                <p className="text-gray-600 responsive-text-sm mb-4 md:mb-6">{limit.description}</p>
                 
-                <ul className="space-y-3">
+                <ul className="space-y-2 md:space-y-3">
                   {limit.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center justify-center text-sm">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                    <li key={featureIndex} className="flex items-center justify-center responsive-text-sm">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-3 flex-shrink-0"></div>
                       <span className="text-gray-700">{feature}</span>
                     </li>
                   ))}

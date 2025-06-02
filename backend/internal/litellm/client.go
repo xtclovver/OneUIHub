@@ -405,17 +405,49 @@ func (c *Client) CreateKey(ctx context.Context, keyReq *LiteLLMKeyRequest) (*Lit
 }
 
 func (c *Client) DeleteKey(ctx context.Context, keyID string) error {
-	reqBody := map[string]string{"key": keyID}
-	req, err := c.newRequest(ctx, "POST", "/key/delete", reqBody)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	// Попробуем несколько способов удаления ключа
+
+	// Способ 1: Стандартный метод с полем "key"
+	reqBody1 := map[string]string{"key": keyID}
+	req1, err := c.newRequest(ctx, "POST", "/key/delete", reqBody1)
+	if err == nil {
+		if err := c.doRequest(req1, nil); err == nil {
+			return nil
+		}
+		fmt.Printf("DeleteKey: Method 1 failed: %v\n", err)
 	}
 
-	if err := c.doRequest(req, nil); err != nil {
-		return fmt.Errorf("failed to delete key: %w", err)
+	// Способ 2: Попробуем с полем "keys" (массив)
+	reqBody2 := map[string]interface{}{"keys": []string{keyID}}
+	req2, err := c.newRequest(ctx, "POST", "/key/delete", reqBody2)
+	if err == nil {
+		if err := c.doRequest(req2, nil); err == nil {
+			return nil
+		}
+		fmt.Printf("DeleteKey: Method 2 failed: %v\n", err)
 	}
 
-	return nil
+	// Способ 3: Попробуем как GET запрос
+	endpoint := fmt.Sprintf("/key/delete?key=%s", keyID)
+	req3, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err == nil {
+		if err := c.doRequest(req3, nil); err == nil {
+			return nil
+		}
+		fmt.Printf("DeleteKey: Method 3 failed: %v\n", err)
+	}
+
+	// Способ 4: Попробуем DELETE метод
+	endpoint4 := fmt.Sprintf("/key/%s", keyID)
+	req4, err := c.newRequest(ctx, "DELETE", endpoint4, nil)
+	if err == nil {
+		if err := c.doRequest(req4, nil); err == nil {
+			return nil
+		}
+		fmt.Printf("DeleteKey: Method 4 failed: %v\n", err)
+	}
+
+	return fmt.Errorf("failed to delete key %s using all available methods", keyID)
 }
 
 func (c *Client) GetUsage(ctx context.Context, keyID string) (*LiteLLMUsageResponse, error) {

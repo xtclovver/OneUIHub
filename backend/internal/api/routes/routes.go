@@ -198,6 +198,12 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		// 	settings.PUT("", r.settingsHandler.UpdateSettings)
 		// 	settings.PUT("/:key", r.settingsHandler.UpdateSetting)
 		// }
+
+		// Маршруты для управления валютами
+		currencies := admin.Group("/currencies")
+		{
+			currencies.POST("/update-rates", r.currencyHandler.UpdateExchangeRates)
+		}
 	}
 
 	// Публичные маршруты для валют
@@ -206,6 +212,7 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		currencies.GET("", r.currencyHandler.GetSupportedCurrencies)
 		currencies.GET("/exchange-rates", r.currencyHandler.GetExchangeRates)
 		currencies.POST("/convert", r.currencyHandler.ConvertCurrency)
+		currencies.POST("/update-rates", r.currencyHandler.UpdateExchangeRates)
 	}
 
 	// Публичные маршруты для компаний

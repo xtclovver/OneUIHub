@@ -18,6 +18,7 @@ type CurrencyService interface {
 	GetExchangeRate(ctx context.Context, fromCurrency, toCurrency string) (float64, error)
 	ConvertCurrency(ctx context.Context, amount float64, fromCurrency, toCurrency string) (float64, error)
 	GetSupportedCurrencies(ctx context.Context) ([]domain.Currency, error)
+	GetAllExchangeRates(ctx context.Context) ([]*domain.ExchangeRate, error)
 }
 
 type currencyService struct {
@@ -43,6 +44,11 @@ func NewCurrencyService(exchangeRateRepo repository.ExchangeRateRepository, curr
 }
 
 func (s *currencyService) UpdateExchangeRates(ctx context.Context) error {
+	// Проверяем, что API ключ настроен
+	if s.apiKey == "" {
+		return fmt.Errorf("exchange rate API key is not configured. Please set EXCHANGE_RATE_API_KEY environment variable")
+	}
+
 	// Получаем курсы валют от внешнего API
 	url := fmt.Sprintf("https://v6.exchangerate-api.com/v6/%s/latest/USD", s.apiKey)
 
@@ -113,6 +119,8 @@ func (s *currencyService) UpdateExchangeRates(ctx context.Context) error {
 				return fmt.Errorf("failed to update RUB->USD exchange rate: %w", err)
 			}
 		}
+	} else {
+		return fmt.Errorf("RUB currency rate not found in API response")
 	}
 
 	return nil
@@ -147,4 +155,13 @@ func (s *currencyService) GetSupportedCurrencies(ctx context.Context) ([]domain.
 	}
 
 	return currencies, nil
+}
+
+func (s *currencyService) GetAllExchangeRates(ctx context.Context) ([]*domain.ExchangeRate, error) {
+	rates, err := s.exchangeRateRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all exchange rates: %w", err)
+	}
+
+	return rates, nil
 }
