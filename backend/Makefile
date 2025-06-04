@@ -1,13 +1,28 @@
-.PHONY: build run test clean deps migrate init-data
+.PHONY: build run test clean deps migrate init-data test-all test-unit test-integration test-auth test-config test-db test-repo test-service test-handler
 
 BINARY_NAME=oneui-hub-server
 BUILD_DIR=bin
 MAIN_PATH=cmd/server/main.go
 
+# Go команды
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
+GOGET=$(GOCMD) get
+GOMOD=$(GOCMD) mod
+
+# Цвета для вывода
+RED=\033[0;31m
+GREEN=\033[0;32m
+YELLOW=\033[1;33m
+NC=\033[0m # No Color
+
 build:
-	@echo "Building $(BINARY_NAME)..."
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
-	@echo "Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
+	@echo "$(GREEN)Сборка приложения...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)
+	@echo "$(GREEN)Сборка завершена: $(BUILD_DIR)/$(BINARY_NAME)$(NC)"
 
 run:
 	@echo "Starting server..."
@@ -15,10 +30,13 @@ run:
 
 # Запуск в режиме разработки с автоперезагрузкой
 dev:
-	@echo "Starting development server..."
+	@echo "$(GREEN)Запуск в режиме разработки...$(NC)"
 	@air -c .air.toml
 
 deps:
+	@echo "$(GREEN)Установка зависимостей...$(NC)"
+	$(GOMOD) download
+	$(GOMOD) tidy
 	@echo "Installing dependencies..."
 	@go mod tidy
 	@go mod download
@@ -26,6 +44,52 @@ deps:
 test:
 	@echo "Running tests..."
 	@go test -v ./...
+
+# Запуск всех тестов
+test-all:
+	@echo "$(GREEN)Запуск всех тестов...$(NC)"
+	@chmod +x test_runner.sh
+	@./test_runner.sh
+
+# Unit тесты
+test-unit:
+	@echo "$(GREEN)Запуск unit тестов...$(NC)"
+	@go test -v ./internal/config/... ./pkg/auth/... ./pkg/database/... ./internal/repository/... ./internal/service/...
+
+# Интеграционные тесты
+test-integration:
+	@echo "$(GREEN)Запуск интеграционных тестов...$(NC)"
+	@go test -v -run TestIntegration ./...
+
+# Тесты аутентификации
+test-auth:
+	@echo "$(GREEN)Запуск тестов аутентификации...$(NC)"
+	@go test -v ./pkg/auth/...
+
+# Тесты конфигурации
+test-config:
+	@echo "$(GREEN)Запуск тестов конфигурации...$(NC)"
+	@go test -v ./internal/config/...
+
+# Тесты базы данных
+test-db:
+	@echo "$(GREEN)Запуск тестов базы данных...$(NC)"
+	@go test -v ./pkg/database/...
+
+# Тесты репозиториев
+test-repo:
+	@echo "$(GREEN)Запуск тестов репозиториев...$(NC)"
+	@go test -v ./internal/repository/...
+
+# Тесты сервисов
+test-service:
+	@echo "$(GREEN)Запуск тестов сервисов...$(NC)"
+	@go test -v ./internal/service/...
+
+# Тесты хендлеров
+test-handler:
+	@echo "$(GREEN)Запуск тестов хендлеров...$(NC)"
+	@go test -v ./internal/api/handlers/...
 
 # Тестирование с покрытием
 test-coverage:
@@ -87,6 +151,15 @@ help:
 	@echo "  dev          - Run in development mode with auto-reload"
 	@echo "  deps         - Install dependencies"
 	@echo "  test         - Run tests"
+	@echo "  test-all     - Run all tests with detailed output"
+	@echo "  test-unit    - Run unit tests only"
+	@echo "  test-integration - Run integration tests only"
+	@echo "  test-auth    - Run authentication tests"
+	@echo "  test-config  - Run configuration tests"
+	@echo "  test-db      - Run database tests"
+	@echo "  test-repo    - Run repository tests"
+	@echo "  test-service - Run service tests"
+	@echo "  test-handler - Run handler tests"
 	@echo "  test-coverage- Run tests with coverage"
 	@echo "  lint         - Run linter"
 	@echo "  fmt          - Format code"

@@ -11,6 +11,18 @@ import (
 	"oneui-hub/internal/repository"
 )
 
+// UserServiceInterface определяет интерфейс для сервиса пользователей
+type UserServiceInterface interface {
+	CreateUser(ctx context.Context, req *CreateUserRequest) (*domain.User, error)
+	AuthenticateUser(ctx context.Context, req *LoginRequest) (*domain.User, error)
+	GetUserByID(ctx context.Context, id string) (*domain.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+	UpdateUser(ctx context.Context, id string, req *UpdateUserRequest) (*domain.User, error)
+	DeleteUser(ctx context.Context, id string) error
+	ListUsers(ctx context.Context, limit, offset int) ([]*domain.User, error)
+	ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error
+}
+
 type UserService struct {
 	userRepo      repository.UserRepository
 	userLimitRepo repository.UserLimitRepository
