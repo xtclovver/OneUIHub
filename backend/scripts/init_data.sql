@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
 CREATE TABLE IF NOT EXISTS requests (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
-  model_id VARCHAR(36) NOT NULL,
+  model_id VARCHAR(36),  -- Убираем NOT NULL, так как используем ON DELETE SET NULL
   api_key_id VARCHAR(36),  -- Добавляем ссылку на API ключ, но без CASCADE DELETE
   external_request_id VARCHAR(255),  -- ID запроса в LiteLLM
   input_tokens INT NOT NULL,
@@ -300,17 +300,17 @@ SELECT id, 0.00 FROM users
 WHERE id NOT IN (SELECT user_id FROM user_spendings); 
 
 
-INSERT INTO tiers (id, name, description, is_free, price, created_at) VALUES
+INSERT IGNORE INTO tiers (id, name, description, is_free, price, created_at) VALUES
 ('tier-free-001', 'Free', 'Бесплатный тариф с базовыми возможностями', true, 0.00, NOW()),
 ('tier-starter-001', 'Starter', 'Стартовый тариф - открывается после трат на $10', false, 10.00, NOW()),
 ('tier-pro-001', 'Pro', 'Профессиональный тариф - открывается после трат на $100', false, 100.00, NOW()),
 ('tier-enterprise-001', 'Enterprise', 'Корпоративный тариф - открывается после трат на $1000', false, 1000.00, NOW());
 
-INSERT INTO currencies (id, name, symbol) VALUES 
+INSERT IGNORE INTO currencies (id, name, symbol) VALUES 
 ('USD', 'US Dollar', '$'),
 ('RUB', 'Russian Ruble', '₽');
 
-INSERT INTO companies (id, name, logo_url, description, external_id, created_at, updated_at) VALUES
+INSERT IGNORE INTO companies (id, name, logo_url, description, external_id, created_at, updated_at) VALUES
 ('company-openai-001', 'OpenAI', 'https://openai.com/favicon.ico', 'Создатель GPT моделей', 'openai', NOW(), NOW()),
 ('company-anthropic-001', 'Anthropic', 'https://anthropic.com/favicon.ico', 'Создатель Claude моделей', 'anthropic', NOW(), NOW()),
 ('company-google-001', 'Google', 'https://google.com/favicon.ico', 'Создатель Gemini моделей', 'google', NOW(), NOW()),
@@ -320,13 +320,13 @@ INSERT INTO companies (id, name, logo_url, description, external_id, created_at,
 
 -- Создание администратора по умолчанию
 -- Пароль: admin123 (хеш bcrypt)
-INSERT INTO users (id, email, password_hash, tier_id, role, created_at, updated_at) VALUES
+INSERT IGNORE INTO users (id, email, password_hash, tier_id, role, created_at, updated_at) VALUES
 ('user-admin-001', 'admin@oneaihub.com', '$2a$12$kuF1fWKB80ndbTMcHVFBAedVI6HMgyvYm0LfORbT5/xw5787aoFiu', 'tier-enterprise-001', 'admin', NOW(), NOW());
 
-INSERT INTO user_spendings (user_id, total_spent, created_at, updated_at) VALUES
+INSERT IGNORE INTO user_spendings (user_id, total_spent, created_at, updated_at) VALUES
 ('user-admin-001', 0.00, NOW(), NOW());
 
-INSERT INTO user_limits (user_id, monthly_token_limit, balance) VALUES
+INSERT IGNORE INTO user_limits (user_id, monthly_token_limit, balance) VALUES
 ('user-admin-001', NULL, 1000.00);
 
 -- Миграция для обновления таблицы requests
