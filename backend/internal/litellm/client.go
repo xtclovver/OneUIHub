@@ -160,6 +160,35 @@ type LiteLLMSpendLogsResponse struct {
 	Data []LiteLLMSpendLogEntry `json:"data"`
 }
 
+// Новые типы для админских функций
+type LiteLLMUserInfo struct {
+	Keys []LiteLLMKeyInfo `json:"keys"`
+}
+
+type LiteLLMKeyInfo struct {
+	KeyName   string     `json:"key_name"`
+	UserID    string     `json:"user_id"`
+	TeamID    string     `json:"team_id"`
+	ExpiresAt *time.Time `json:"expires"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type LiteLLMGlobalSpend struct {
+	Spend float64 `json:"spend"`
+}
+
+type LiteLLMGlobalActivity struct {
+	SumAPIRequests int                        `json:"sum_api_requests"`
+	SumTotalTokens int                        `json:"sum_total_tokens"`
+	DailyData      []LiteLLMDailyActivityData `json:"daily_data"`
+}
+
+type LiteLLMDailyActivityData struct {
+	Date        string `json:"date"`
+	APIRequests int    `json:"api_requests"`
+	TotalTokens int    `json:"total_tokens"`
+}
+
 func NewClient(cfg *config.LiteLLMConfig) *Client {
 	return &Client{
 		baseURL: cfg.BaseURL,
@@ -678,4 +707,91 @@ func (c *Client) GetKeyUsageStats(ctx context.Context, apiKey string) (map[strin
 	stats["providers_used"] = providersUsed
 
 	return stats, nil
+}
+
+// GetUserInfo получает информацию о пользователях из LiteLLM
+func (c *Client) GetUserInfo(ctx context.Context) (*LiteLLMUserInfo, error) {
+	req, err := c.newRequest(ctx, "GET", "/user/info", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMUserInfo
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateKey обновляет ключ пользователя в LiteLLM
+func (c *Client) UpdateKey(ctx context.Context, keyID string, keyReq *LiteLLMKeyRequest) error {
+	reqBody := map[string]interface{}{
+		"key": keyID,
+	}
+
+	// Добавляем поля из keyReq
+	if keyReq.KeyAlias != "" {
+		reqBody["key_alias"] = keyReq.KeyAlias
+	}
+	if keyReq.UserID != "" {
+		reqBody["user_id"] = keyReq.UserID
+	}
+	if keyReq.TeamID != "" {
+		reqBody["team_id"] = keyReq.TeamID
+	}
+	if keyReq.MaxBudget != nil {
+		reqBody["max_budget"] = *keyReq.MaxBudget
+	}
+	if keyReq.ExpiresAt != nil {
+		reqBody["expires"] = keyReq.ExpiresAt
+	}
+	if len(keyReq.Models) > 0 {
+		reqBody["models"] = keyReq.Models
+	}
+	if keyReq.Metadata != nil {
+		reqBody["metadata"] = keyReq.Metadata
+	}
+
+	req, err := c.newRequest(ctx, "POST", "/key/update", reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("failed to update key: %w", err)
+	}
+
+	return nil
+}
+
+// GetGlobalSpend получает глобальные расходы из LiteLLM
+func (c *Client) GetGlobalSpend(ctx context.Context) (*LiteLLMGlobalSpend, error) {
+	req, err := c.newRequest(ctx, "GET", "/global/spend", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMGlobalSpend
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get global spend: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGlobalActivity получает глобальную активность из LiteLLM
+func (c *Client) GetGlobalActivity(ctx context.Context, startDate, endDate string) (*LiteLLMGlobalActivity, error) {
+	endpoint := fmt.Sprintf("/global/activity?start_date=%s&end_date=%s", startDate, endDate)
+	req, err := c.newRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	var response LiteLLMGlobalActivity
+	if err := c.doRequest(req, &response); err != nil {
+		return nil, fmt.Errorf("failed to get global activity: %w", err)
+	}
+
+	return &response, nil
 }

@@ -8,15 +8,16 @@ import (
 )
 
 type Router struct {
-	authHandler      *handlers.AuthHandler
-	modelHandler     *handlers.ModelHandler
-	companyHandler   *handlers.CompanyHandler
-	budgetHandler    *handlers.BudgetHandler
-	currencyHandler  *handlers.CurrencyHandler
-	tierHandler      *handlers.TierHandler
-	userHandler      *handlers.UserHandler
-	rateLimitHandler *handlers.RateLimitHandler
-	uploadHandler    *handlers.UploadHandler
+	authHandler         *handlers.AuthHandler
+	modelHandler        *handlers.ModelHandler
+	companyHandler      *handlers.CompanyHandler
+	budgetHandler       *handlers.BudgetHandler
+	currencyHandler     *handlers.CurrencyHandler
+	tierHandler         *handlers.TierHandler
+	userHandler         *handlers.UserHandler
+	rateLimitHandler    *handlers.RateLimitHandler
+	uploadHandler       *handlers.UploadHandler
+	litellmAdminHandler *handlers.LiteLLMAdminHandler
 	// settingsHandler *handlers.SettingsHandler
 	authMiddleware *middleware.AuthMiddleware
 }
@@ -31,19 +32,21 @@ func NewRouter(
 	userHandler *handlers.UserHandler,
 	rateLimitHandler *handlers.RateLimitHandler,
 	uploadHandler *handlers.UploadHandler,
+	litellmAdminHandler *handlers.LiteLLMAdminHandler,
 	// settingsHandler *handlers.SettingsHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
-		authHandler:      authHandler,
-		modelHandler:     modelHandler,
-		companyHandler:   companyHandler,
-		budgetHandler:    budgetHandler,
-		currencyHandler:  currencyHandler,
-		tierHandler:      tierHandler,
-		userHandler:      userHandler,
-		rateLimitHandler: rateLimitHandler,
-		uploadHandler:    uploadHandler,
+		authHandler:         authHandler,
+		modelHandler:        modelHandler,
+		companyHandler:      companyHandler,
+		budgetHandler:       budgetHandler,
+		currencyHandler:     currencyHandler,
+		tierHandler:         tierHandler,
+		userHandler:         userHandler,
+		rateLimitHandler:    rateLimitHandler,
+		uploadHandler:       uploadHandler,
+		litellmAdminHandler: litellmAdminHandler,
 		// settingsHandler: settingsHandler,
 		authMiddleware: authMiddleware,
 	}
@@ -203,6 +206,29 @@ func (r *Router) SetupRoutes() *gin.Engine {
 		currencies := admin.Group("/currencies")
 		{
 			currencies.POST("/update-rates", r.currencyHandler.UpdateExchangeRates)
+		}
+
+		// Маршруты для LiteLLM админских функций
+		litellm := admin.Group("/litellm")
+		{
+			// Модели
+			litellm.GET("/models/group-info", r.litellmAdminHandler.GetModelGroupInfo)
+			litellm.GET("/models/info", r.litellmAdminHandler.GetModelsInfo)
+			litellm.POST("/models", r.litellmAdminHandler.CreateModel)
+			litellm.PUT("/models", r.litellmAdminHandler.UpdateModel)
+			litellm.DELETE("/models/:model_id", r.litellmAdminHandler.DeleteModel)
+
+			// Пользователи и ключи
+			litellm.GET("/users/info", r.litellmAdminHandler.GetUserInfo)
+			litellm.POST("/users/keys", r.litellmAdminHandler.CreateUserKey)
+			litellm.PUT("/users/keys/:key_id", r.litellmAdminHandler.UpdateUserKey)
+			litellm.DELETE("/users/keys/:key_id", r.litellmAdminHandler.DeleteUserKey)
+
+			// Статистика и аналитика
+			litellm.GET("/global/spend", r.litellmAdminHandler.GetGlobalSpend)
+			litellm.GET("/global/spend/logs", r.litellmAdminHandler.GetSpendLogs)
+			litellm.GET("/global/activity", r.litellmAdminHandler.GetGlobalActivity)
+			litellm.GET("/admin/stats", r.litellmAdminHandler.GetAdminStats)
 		}
 	}
 

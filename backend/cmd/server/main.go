@@ -80,10 +80,11 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService, litellmClient, apiKeyRepo, requestRepo)
 	rateLimitHandler := handlers.NewRateLimitHandler(rateLimitService)
 	uploadHandler := handlers.NewUploadHandler()
+	litellmAdminHandler := handlers.NewLiteLLMAdminHandler(litellmClient)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, rateLimitHandler, uploadHandler, authMiddleware)
+	router := routes.NewRouter(authHandler, modelHandler, companyHandler, budgetHandler, currencyHandler, tierHandler, userHandler, rateLimitHandler, uploadHandler, litellmAdminHandler, authMiddleware)
 
 	engine := router.SetupRoutes()
 	address := cfg.Server.Host + ":" + cfg.Server.Port

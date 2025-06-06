@@ -14,15 +14,6 @@ import {
   UpdateUserKeyRequest,
 } from '../types/admin';
 
-const LITELLM_BASE_URL = 'http://localhost:4000';
-const LITELLM_API_KEY = 'sk-cix7xI3fGYclgRwV-tzHYg';
-
-const headers = {
-  'accept': 'application/json',
-  'x-litellm-api-key': LITELLM_API_KEY,
-  'Content-Type': 'application/json',
-};
-
 export const adminAPI = {
   // Users
   getUsers: (): Promise<{ data: ApiResponse<User[]> }> => {
@@ -94,41 +85,24 @@ export const adminAPI = {
   },
 };
 
-// Модели
+// Модели - теперь используем наш бекенд с JWT авторизацией
 export const getModelGroupInfo = async (): Promise<{ data: ModelGroupInfo[] }> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/model_group/info`, {
-    headers,
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при получении информации о группах моделей');
-  }
-  return response.json();
+  const response = await apiClient.get<{ data: ModelGroupInfo[] }>('/admin/litellm/models/group-info');
+  return response.data;
 };
 
 export const getModelsInfo = async (): Promise<{ data: LiteLLMModel[] }> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/model/info`, {
-    headers,
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при получении информации о моделях');
-  }
-  return response.json();
+  const response = await apiClient.get<{ data: LiteLLMModel[] }>('/admin/litellm/models/info');
+  return response.data;
 };
 
 export const createModel = async (data: CreateModelRequest): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/model/new`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при создании модели');
-  }
+  await apiClient.post('/admin/litellm/models', data);
 };
 
 export const updateModel = async (data: UpdateModelRequest): Promise<void> => {
   try {
-    await apiClient.put(`/admin/models/${data.model_id}`, data);
+    await apiClient.put('/admin/litellm/models', data);
   } catch (error: any) {
     throw new Error(error.response?.data?.error || 'Ошибка при обновлении модели');
   }
@@ -136,122 +110,53 @@ export const updateModel = async (data: UpdateModelRequest): Promise<void> => {
 
 export const deleteModel = async (modelId: string): Promise<void> => {
   try {
-    await apiClient.delete(`/admin/models/${modelId}`);
+    await apiClient.delete(`/admin/litellm/models/${modelId}`);
   } catch (error: any) {
     throw new Error(error.response?.data?.error || 'Ошибка при удалении модели');
   }
 };
 
-// Пользователи
+// Пользователи - теперь используем наш бекенд с JWT авторизацией
 export const getUserInfo = async (): Promise<UserInfo> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/user/info`, {
-    headers,
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при получении информации о пользователях');
-  }
-  return response.json();
+  const response = await apiClient.get<UserInfo>('/admin/litellm/users/info');
+  return response.data;
 };
 
 export const createUserKey = async (data: CreateUserKeyRequest): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/key/generate`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при создании ключа пользователя');
-  }
+  await apiClient.post('/admin/litellm/users/keys', data);
 };
 
 export const updateUserKey = async (keyId: string, data: UpdateUserKeyRequest): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/key/update`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ key: keyId, ...data }),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при обновлении ключа пользователя');
-  }
+  await apiClient.put(`/admin/litellm/users/keys/${keyId}`, data);
 };
 
 export const deleteUserKey = async (keyId: string): Promise<void> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/key/delete`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ keys: [keyId] }),
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при удалении ключа пользователя');
-  }
+  await apiClient.delete(`/admin/litellm/users/keys/${keyId}`);
 };
 
-// Статистика и аналитика
+// Статистика и аналитика - теперь используем наш бекенд с JWT авторизацией
 export const getGlobalSpend = async (): Promise<GlobalSpend> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/global/spend`, {
-    headers,
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при получении глобальных расходов');
-  }
-  return response.json();
+  const response = await apiClient.get<GlobalSpend>('/admin/litellm/global/spend');
+  return response.data;
 };
 
 export const getSpendLogs = async (): Promise<SpendLog[]> => {
-  const response = await fetch(`${LITELLM_BASE_URL}/global/spend/logs`, {
-    headers,
-  });
-  if (!response.ok) {
-    throw new Error('Ошибка при получении логов расходов');
-  }
-  return response.json();
+  const response = await apiClient.get<SpendLog[]>('/admin/litellm/global/spend/logs');
+  return response.data;
 };
 
 export const getGlobalActivity = async (startDate: string, endDate: string): Promise<GlobalActivity> => {
-  const response = await fetch(
-    `${LITELLM_BASE_URL}/global/activity?start_date=${startDate}&end_date=${endDate}`,
-    { headers }
+  const response = await apiClient.get<GlobalActivity>(
+    `/admin/litellm/global/activity?start_date=${startDate}&end_date=${endDate}`
   );
-  if (!response.ok) {
-    throw new Error('Ошибка при получении глобальной активности');
-  }
-  return response.json();
+  return response.data;
 };
 
-// Агрегированная статистика для дашборда
+// Агрегированная статистика для дашборда - теперь используем наш бекенд с JWT авторизацией
 export const getAdminStats = async (): Promise<AdminStats> => {
   try {
-    const [modelsResponse, userResponse, spendResponse, activityResponse] = await Promise.all([
-      getModelsInfo(),
-      getUserInfo(),
-      getGlobalSpend(),
-      getGlobalActivity(
-        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        new Date().toISOString().split('T')[0]
-      ),
-    ]);
-
-    const totalUsers = userResponse.keys.length;
-    const activeModels = modelsResponse.data.length;
-    const totalSpend = spendResponse.spend;
-    const totalRequests = activityResponse.sum_api_requests;
-    const totalTokens = activityResponse.sum_total_tokens;
-
-    // Получаем запросы за сегодня
-    const todayActivity = activityResponse.daily_data.find(
-      (day) => day.date === new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    );
-    const requestsToday = todayActivity?.api_requests || 0;
-
-    return {
-      totalUsers,
-      activeModels,
-      requestsToday,
-      monthlyRevenue: totalSpend,
-      totalSpend,
-      totalRequests,
-      totalTokens,
-    };
+    const response = await apiClient.get<AdminStats>('/admin/litellm/admin/stats');
+    return response.data;
   } catch (error) {
     console.error('Ошибка при получении статистики админа:', error);
     throw error;
