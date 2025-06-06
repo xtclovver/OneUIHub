@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/gin-gonic/gin v1.9.1
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.3.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.4.0
@@ -45,6 +45,6 @@ require (
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
